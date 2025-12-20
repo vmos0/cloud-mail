@@ -269,6 +269,8 @@ const emailService = {
 		emailData.type = emailConst.type.SEND;
 		emailData.userId = userId;
 		emailData.status = emailConst.status.SENT;
+		emailData.toEmail = '';
+		emailData.toName = '';
 
 		const emailDataList = [];
 		const resendEmailList = [];
@@ -358,19 +360,23 @@ const emailService = {
 			}
 
 			// 添加发送记录
-			if (manyType === 'divide') {
-				resendEmailList.forEach((item, index) => {
+				if (manyType === 'divide') {
+					resendEmailList.forEach((item, index) => {
+						const emailDataItem = { ...emailData };
+						emailDataItem.resendEmailId = data.data[index].id;
+						emailDataItem.recipient = JSON.stringify([{ address: item, name: '' }]);
+						emailDataItem.toEmail = item;
+						emailDataItem.toName = '';
+						emailDataList.push(emailDataItem);
+					});
+				} else {
 					const emailDataItem = { ...emailData };
-					emailDataItem.resendEmailId = data.data[index].id;
-					emailDataItem.recipient = JSON.stringify([{ address: item, name: '' }]);
+					emailDataItem.resendEmailId = data.id;
+					emailDataItem.recipient = JSON.stringify(resendEmailList.map(item => ({ address: item, name: '' })));
+					emailDataItem.toEmail = resendEmailList.join(',');
+					emailDataItem.toName = '';
 					emailDataList.push(emailDataItem);
-				});
-			} else {
-				const emailDataItem = { ...emailData };
-				emailDataItem.resendEmailId = data.id;
-				emailDataItem.recipient = JSON.stringify(resendEmailList.map(item => ({ address: item, name: '' })));
-				emailDataList.push(emailDataItem);
-			}
+				}
 		}
 
 		// 处理站内邮件
@@ -378,6 +384,8 @@ const emailService = {
 			// 添加发送记录
 			const emailDataItem = { ...emailData };
 			emailDataItem.recipient = JSON.stringify([{ address: recipientEmail, name: '' }]);
+			emailDataItem.toEmail = recipientEmail;
+			emailDataItem.toName = '';
 			emailDataList.push(emailDataItem);
 
 			// 查找收件人账户
@@ -396,8 +404,9 @@ const emailService = {
 					userId: recipientAccount.userId,
 					type: emailConst.type.RECEIVE,
 					status: emailConst.status.RECEIVE,
-					recipient: JSON.parse(emailDataItem.recipient),
-					unread: emailConst.unread.UNREAD
+					recipient: JSON.stringify([{ address: recipientEmail, name: '' }]),
+					unread: emailConst.unread.UNREAD,
+					toName: ''
 				};
 				
 				if (sendType === 'reply') {
