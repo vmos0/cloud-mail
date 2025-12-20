@@ -237,14 +237,6 @@ const emailService = {
 
 		}
 
-		const domain = emailUtils.getDomain(accountRow.email);
-		const resendToken = resendTokens[domain];
-
-		if (!resendToken) {
-			throw new BizError(t('noResendToken'));
-		}
-
-
 		if (!name) {
 			name = emailUtils.getName(accountRow.email);
 		}
@@ -263,68 +255,8 @@ const emailService = {
 
 		}
 
-		let resendResult = null;
-
-		const resend = new Resend(resendToken);
-
-		//如果是分开发送
-		if (manyType === 'divide') {
-
-			let sendFormList = [];
-
-			receiveEmail.forEach(email => {
-				const sendForm = {
-					from: `${name} <${accountRow.email}>`,
-					to: [email],
-					subject: subject,
-					text: text,
-					html: html
-				};
-
-				if (sendType === 'reply') {
-					sendForm.headers = {
-						'in-reply-to': emailRow.messageId,
-						'references': emailRow.messageId
-					};
-				}
-
-				sendFormList.push(sendForm);
-			});
-
-			resendResult = await resend.batch.send(sendFormList);
-
-		} else {
-
-			const sendForm = {
-				from: `${name} <${accountRow.email}>`,
-				to: [...receiveEmail],
-				subject: subject,
-				text: text,
-				html: html,
-				attachments: [...imageDataList, ...attachments]
-			};
-
-			if (sendType === 'reply') {
-				sendForm.headers = {
-					'in-reply-to': emailRow.messageId,
-					'references': emailRow.messageId
-				};
-			}
-
-			resendResult = await resend.emails.send(sendForm);
-
-		}
-
-		const { data, error } = resendResult;
-
-
-		if (error) {
-			throw new BizError(error.message);
-		}
-
-		imageDataList = imageDataList.map(item => ({...item, contentId: `<${item.contentId}>`}))
-
 		//把图片标签cid标签切换会通用url
+		imageDataList = imageDataList.map(item => ({...item, contentId: `<${item.contentId}>`}))
 		html = this.imgReplace(html, imageDataList, r2Domain);
 
 		const emailData = {};
@@ -339,47 +271,168 @@ const emailService = {
 		emailData.status = emailConst.status.SENT;
 
 		const emailDataList = [];
+		const resendEmailList = [];
+		const localEmailList = [];
 
-		if (manyType === 'divide') {
+		// 获取本服务的域名列表
+		let domainList = c.env.domain;
+		if (typeof domainList === 'string') {
+			domainList = JSON.parse(domainList);
+		}
 
-			receiveEmail.forEach((item, index) => {
+		// 分离站内邮件和外部邮件
+		receiveEmail.forEach(recipientEmail => {
+			const recipientDomain = emailUtils.getDomain(recipientEmail);
+			if (domainList.includes(recipientDomain)) {
+				localEmailList.push(recipientEmail);
+			} else {
+				resendEmailList.push(recipientEmail);
+			}
+		});
+
+		// 处理外部邮件发送
+		if (resendEmailList.length > 0) {
+			const domain = emailUtils.getDomain(accountRow.email);
+			const resendToken = resendTokens[domain];
+
+			if (!resendToken) {
+				throw new BizError(t('noResendToken'));
+			}
+
+			let resendResult = null;
+			const resend = new Resend(resendToken);
+
+			//如果是分开发送
+			if (manyType === 'divide') {
+
+				let sendFormList = [];
+
+				resendEmailList.forEach(email => {
+					const sendForm = {
+						from: `${name} <${accountRow.email}>`,
+						to: [email],
+						subject: subject,
+						text: text,
+						html: html,
+						attachments: [...imageDataList, ...attachments]
+					};
+
+					if (sendType === 'reply') {
+						sendForm.headers = {
+							'in-reply-to': emailRow.messageId,
+							'references': emailRow.messageId
+						};
+					}
+
+					sendFormList.push(sendForm);
+				});
+
+				resendResult = await resend.batch.send(sendFormList);
+
+			} else {
+
+				const sendForm = {
+					from: `${name} <${accountRow.email}>`,
+					to: [...resendEmailList],
+					subject: subject,
+					text: text,
+					html: html,
+					attachments: [...imageDataList, ...attachments]
+				};
+
+				if (sendType === 'reply') {
+					sendForm.headers = {
+						'in-reply-to': emailRow.messageId,
+						'references': emailRow.messageId
+					};
+				}
+
+				resendResult = await resend.emails.send(sendForm);
+
+			}
+
+			const { data, error } = resendResult;
+
+			if (error) {
+				throw new BizError(error.message);
+			}
+
+			// 添加发送记录
+			if (manyType === 'divide') {
+				resendEmailList.forEach((item, index) => {
+					const emailDataItem = { ...emailData };
+					emailDataItem.resendEmailId = data.data[index].id;
+					emailDataItem.recipient = JSON.stringify([{ address: item, name: '' }]);
+					emailDataList.push(emailDataItem);
+				});
+			} else {
 				const emailDataItem = { ...emailData };
-				emailDataItem.resendEmailId = data.data[index].id;
-				emailDataItem.recipient = JSON.stringify([{ address: item, name: '' }]);
+				emailDataItem.resendEmailId = data.id;
+				emailDataItem.recipient = JSON.stringify(resendEmailList.map(item => ({ address: item, name: '' })));
 				emailDataList.push(emailDataItem);
-			});
+			}
+		}
 
-		} else {
+		// 处理站内邮件
+		for (const recipientEmail of localEmailList) {
+			// 添加发送记录
+			const emailDataItem = { ...emailData };
+			emailDataItem.recipient = JSON.stringify([{ address: recipientEmail, name: '' }]);
+			emailDataList.push(emailDataItem);
 
-			emailData.resendEmailId = data.id;
-
-			const recipient = [];
-
-			receiveEmail.forEach(item => {
-				recipient.push({ address: item, name: '' });
-			});
-
-			emailData.recipient = JSON.stringify(recipient);
-
-			emailDataList.push(emailData);
+			// 查找收件人账户
+			const recipientAccount = await accountService.selectByEmailIncludeDel(c, recipientEmail);
+			
+			if (recipientAccount && recipientAccount.isDel === isDel.NORMAL) {
+				// 创建收件记录
+				const receiveData = {
+					name: name,
+					sendEmail: accountRow.email,
+					toEmail: recipientEmail,
+					subject: subject,
+					content: html,
+					text: text,
+					accountId: recipientAccount.accountId,
+					userId: recipientAccount.userId,
+					type: emailConst.type.RECEIVE,
+					status: emailConst.status.RECEIVE,
+					recipient: JSON.parse(emailDataItem.recipient),
+					unread: emailConst.unread.UNREAD
+				};
+				
+				if (sendType === 'reply') {
+					receiveData.inReplyTo = emailRow.messageId;
+					receiveData.relation = emailRow.messageId;
+				}
+				
+				// 插入收件记录
+				const receiveEmailRow = await orm(c).insert(email).values(receiveData).returning().get();
+				
+				// 保存附件到收件记录
+				if (imageDataList.length > 0) {
+					await attService.saveArticleAtt(c, imageDataList, recipientAccount.userId, recipientAccount.accountId, receiveEmailRow.emailId);
+				}
+				
+				if (attachments?.length > 0 && await r2Service.hasOSS(c)) {
+					await attService.saveSendAtt(c, attachments, recipientAccount.userId, recipientAccount.accountId, receiveEmailRow.emailId);
+				}
+			}
 		}
 
 		if (sendType === 'reply') {
-			emailDataList.forEach(emailData => {
-				emailData.inReplyTo = emailRow.messageId;
-				emailData.relation = emailRow.messageId;
+			emailDataList.forEach(emailDataItem => {
+				emailDataItem.inReplyTo = emailRow.messageId;
+				emailDataItem.relation = emailRow.messageId;
 			});
 		}
-
 
 		if (roleRow.sendCount) {
 			await userService.incrUserSendCount(c, receiveEmail.length, userId);
 		}
 
 		const emailRowList = await Promise.all(
-
-			emailDataList.map(async (emailData) => {
-				const emailRow = await orm(c).insert(email).values(emailData).returning().get();
+			emailDataList.map(async (emailDataItem) => {
+				const emailRow = await orm(c).insert(email).values(emailDataItem).returning().get();
 
 				if (imageDataList.length > 0) {
 					await attService.saveArticleAtt(c, imageDataList, userId, accountId, emailRow.emailId);
