@@ -272,7 +272,9 @@ oauthGetUser();
 async function oauthGetUser() {
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
-  const provider = params.get('provider') || 'linuxdo'
+  const pathname = window.location.pathname
+  // 根据URL路径判断provider
+  const provider = pathname.includes('github') ? 'github' : 'linuxdo'
 
   if (code) {
     oauthLoading.value = true
@@ -291,7 +293,7 @@ async function oauthGetUser() {
         showBindForm.value = true
         oauthLoading.value = false
         ElMessage({
-          message: '请注册绑定一个邮箱',
+          message: t('pleaseBindEmail'),
           type: 'warning',
           duration: 4000,
           plain: true,

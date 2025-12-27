@@ -259,7 +259,8 @@ const wenyan = {
     resendToken: '重发令牌',
     addResendTokenDesc: '请输重发令牌',
     resetPassword: '重置密码',
-    emptyUserNameMsg: '请输用户名'
+    emptyUserNameMsg: '请输用户名',
+    pleaseBindEmail: '请注册绑定邮箱'
 };
 
 export default wenyan;

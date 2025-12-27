@@ -20,9 +20,20 @@ const oauthService = {
 			throw new BizError('用户已绑定有邮箱')
 		}
 
-		await loginService.register(c, { email, password: cryptoUtils.genRandomPwd(), code }, true);
-
-		userRow = await userService.selectByEmail(c, email);
+		// 检查邮箱是否已存在
+		let existingUser = await userService.selectByEmailIncludeDel(c, email);
+		
+		if (existingUser) {
+			// 邮箱已存在，直接绑定
+			if (existingUser.isDel === 1) {
+				throw new BizError('该邮箱已被删除')
+			}
+			userRow = existingUser;
+		} else {
+			// 邮箱不存在，注册新用户
+			await loginService.register(c, { email, password: cryptoUtils.genRandomPwd(), code }, true);
+			userRow = await userService.selectByEmail(c, email);
+		}
 
 		orm(c).update(oauth).set({ userId: userRow.userId }).where(eq(oauth.oauthUserId, oauthUserId)).run();
 		const jwtToken = await loginService.login(c, { email, password: null }, true);
