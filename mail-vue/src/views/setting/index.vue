@@ -54,7 +54,7 @@
           <el-button v-if="!userStore.user.oauthId" type="primary" @click="bindGithub">
             <el-avatar src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" :size="18" style="margin-right: 10px" />{{$t('bindGithub')}}
           </el-button>
-          <el-button v-else type="danger" @click="unbindGithub">
+          <el-button v-else type="danger" @click="handleUnbindGithub" :loading="unbindGithubLoading">
             <el-avatar src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" :size="18" style="margin-right: 10px" />{{$t('unbindGithub')}}
           </el-button>
         </div>
@@ -80,7 +80,7 @@
 </template>
 <script setup>
 import {reactive, ref, defineOptions, onMounted} from 'vue'
-import {resetPassword, userDelete, setEmailAutoDeleteDays, unbindGithub} from "@/request/my.js"
+import {resetPassword, userDelete, setEmailAutoDeleteDays, unbindGithub as unbindGithubApi} from "@/request/my.js"
 import {useUserStore} from "@/store/user.js"
 import router from "@/router/index.js"
 import {accountSetName} from "@/request/account.js"
@@ -190,14 +190,14 @@ const bindGithub = () => {
 }
 
 // 解绑GitHub账号
-const unbindGithub = () => {
+const handleUnbindGithub = () => {
   ElMessageBox.confirm(t('unbindGithubConfirm'), {
     confirmButtonText: t('confirm'),
     cancelButtonText: t('cancel'),
     type: 'warning'
   }).then(() => {
     unbindGithubLoading.value = true
-    unbindGithub().then(() => {
+    unbindGithubApi().then(() => {
       ElMessage({
         message: t('unbindSuccessMsg'),
         type: 'success',
