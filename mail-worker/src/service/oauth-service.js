@@ -145,8 +145,22 @@ const oauthService = {
 		userInfo.silenced = 0;
 		userInfo.trustLevel = 0;
 
-		const  oauthRow = await this.saveUser(c, userInfo);
-		const userRow = await userService.selectByIdIncludeDel(c, oauthRow.userId);
+		// 保存OAuth信息
+		const oauthRow = await this.saveUser(c, userInfo);
+		
+		// 查找关联用户
+		let userRow = await userService.selectByIdIncludeDel(c, oauthRow.userId);
+		
+		// 如果没有找到用户，尝试查找是否有其他用户绑定了该GitHub账户
+		if (!userRow || oauthRow.userId === 0) {
+			// 检查是否有用户已经绑定了该GitHub账户
+			const existingBinding = await userService.selectByOauthUserId(c, userInfo.oauthUserId);
+			if (existingBinding) {
+				userRow = existingBinding;
+				// 更新OAuth记录的userId
+				await orm(c).update(oauth).set({ userId: userRow.userId }).where(eq(oauth.oauthId, oauthRow.oauthId)).run();
+			}
+		}
 
 		if (!userRow) {
 			return { userInfo: oauthRow, token: null }

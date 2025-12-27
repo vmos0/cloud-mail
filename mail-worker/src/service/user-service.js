@@ -374,6 +374,23 @@ const userService = {
 			.where(eq(user.regKeyId, regKeyId))
 			.orderBy(desc(user.userId))
 			.all();
+	},
+	
+	// 根据OAuth用户ID查找关联的用户
+	async selectByOauthUserId(c, oauthUserId) {
+		const result = await orm(c)
+			.select()
+			.from(user)
+			.innerJoin(oauth, eq(oauth.userId, user.userId))
+			.where(
+				and(
+					eq(oauth.oauthUserId, oauthUserId),
+					eq(user.isDel, isDel.NORMAL)
+				)
+			)
+			.get();
+		
+		return result ? result.user : null;
 	}
 };
 
