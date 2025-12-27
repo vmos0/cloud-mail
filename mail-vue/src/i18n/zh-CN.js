@@ -40,6 +40,7 @@ const zh = {
     unbindGithub: '解绑GitHub',
     unbindGithubConfirm: '确定要解绑GitHub账号吗？',
     unbindSuccessMsg: '解绑成功',
+    bindGithubAfterReg: '是否现在绑定GitHub账号？绑定后可以使用GitHub账号快速登录。',
     delAccount: '删除账户',
     delAccountMsg: '此操作将永久删除您的账户及其所有数据，无法恢复',
     totalReceived: '收件数量',

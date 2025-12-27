@@ -1887,7 +1887,3 @@ form .el-button {
 
 </style>
 
-<style>
-.el-popper.is-dark {
-}
-</style>

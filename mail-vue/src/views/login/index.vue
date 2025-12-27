@@ -100,9 +100,6 @@
           <el-button v-if="settingStore.settings.linuxdoSwitch" class="btn" style="margin-top: 10px"  @click="linuxDoLogin">
             <el-avatar src="/image/linuxdo.webp" :size="18" style="margin-right: 10px" />LinuxDo
           </el-button>
-          <el-button v-if="settingStore.settings.githubSwitch" class="btn" style="margin-top: 10px"  @click="githubLogin">
-            <el-avatar src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" :size="18" style="margin-right: 10px" />GitHub
-          </el-button>
         </div>
         <template v-if="settingStore.settings.register === 0">
           <div class="switch" @click="show = 'register'" v-if="show === 'login'">{{ $t('noAccount') }}
@@ -267,7 +264,7 @@ function githubLogin() {
   const clientId = settingStore.settings.githubClientId
   const redirectUri = encodeURIComponent(settingStore.settings.githubCallbackUrl)
   window.location.href =
-      `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=user:email`
+      `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=user:email&provider=github`
 }
 
 oauthGetUser();
@@ -542,11 +539,32 @@ function submitRegister() {
     verifyToken = ''
     settingStore.settings.regVerifyOpen = regVerifyOpen
     verifyShow.value = false
-    ElMessage({
-      message: t('regSuccessMsg'),
-      type: 'success',
-      plain: true,
-    })
+    
+    // 注册成功后，询问是否绑定GitHub
+    if (settingStore.settings.githubSwitch) {
+      ElMessageBox.confirm(t('bindGithubAfterReg'), t('regSuccessMsg'), {
+        confirmButtonText: t('confirm'),
+        cancelButtonText: t('cancel'),
+        type: 'info'
+      }).then(() => {
+        // 绑定GitHub
+        githubLogin()
+      }).catch(() => {
+        // 不绑定，显示成功提示
+        ElMessage({
+          message: t('regSuccessMsg'),
+          type: 'success',
+          plain: true,
+        })
+      })
+    } else {
+      // GitHub开关未开启，直接显示成功提示
+      ElMessage({
+        message: t('regSuccessMsg'),
+        type: 'success',
+        plain: true,
+      })
+    }
   }).catch(res => {
 
     registerLoading.value = false
