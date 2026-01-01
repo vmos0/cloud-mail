@@ -17,6 +17,11 @@ export default {
 			return app.fetch(req, env, ctx);
 		}
 
+		// 处理GitHub OAuth回调请求
+		if (url.pathname === '/oauth/github/callback') {
+			return app.fetch(req, env, ctx);
+		}
+
 		 if (['/static/','/attachments/'].some(p => url.pathname.startsWith(p))) {
 			 return await kvObjService.toObjResp( { env }, url.pathname.substring(1));
 		 }
