@@ -1,6 +1,6 @@
 <template>
   <el-config-provider :locale="settingStore.lang === 'zh' ? zhCn : null">
-    <router-view />
+    <router-view :key="$route.fullPath" />
   </el-config-provider>
 </template>
 <script setup>
