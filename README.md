@@ -36,7 +36,7 @@
 
 ## 项目展示
 
-- [在线演示](https://skymail.ink)<br>
+- [在线演示](https://mail.ygyang.uk)<br>
 - [部署文档](https://doc.skymail.ink)<br>
 
 | ![](/doc/demo/demo1.png) | ![](/doc/demo/demo2.png) |
@@ -139,7 +139,7 @@ cloud-mail
 
 ## 赞助
 
-<a href="https://doc.skymail.ink/support.html" >
+<a href="https://pay.ygyang.uk" >
 <img width="170px" src="./doc/images/support.png" alt="">
 </a>
 

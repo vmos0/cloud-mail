@@ -27,7 +27,11 @@ jobs:
       LINUXDO_CLIENT_ID: ${{ secrets.LINUXDO_CLIENT_ID || vars.LINUXDO_CLIENT_ID }}
       LINUXDO_CLIENT_SECRET: ${{ secrets.LINUXDO_CLIENT_SECRET || vars.LINUXDO_CLIENT_SECRET }}
       LINUXDO_CALLBACK_URL: ${{ secrets.LINUXDO_CALLBACK_URL || vars.LINUXDO_CALLBACK_URL }}
-      LINUXDO_SWITCH: ${{ secrets.LINUXDO_SWITCH || vars.LINUXDO_SWITCH }}
+      LINUXDO_SWITCH: ${{ secrets.LINUXDO_SWITCH || vars.LINUXDO_SWITCH }}      
+      GITHUB_CLIENT_ID: ${{ secrets.GITHUB_CLIENT_ID || vars.GITHUB_CLIENT_ID }}
+      GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET || vars.GITHUB_CLIENT_SECRET }}
+      GITHUB_CALLBACK_URL: ${{ secrets.GITHUB_CALLBACK_URL || vars.GITHUB_CALLBACK_URL }}
+      GITHUB_SWITCH: ${{ secrets.GITHUB_SWITCH || vars.GITHUB_SWITCH }}
 
     outputs:
       worker_url: ${{ steps.deploy.outputs.worker_url }}
@@ -115,7 +119,11 @@ jobs:
           sed -i "s|\${LINUXDO_CLIENT_ID}|${LINUXDO_CLIENT_ID}|g" "$CONFIG_FILE"
           sed -i "s|\${LINUXDO_CLIENT_SECRET}|${LINUXDO_CLIENT_SECRET}|g" "$CONFIG_FILE"
           sed -i "s|\${LINUXDO_CALLBACK_URL}|${LINUXDO_CALLBACK_URL}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_SWITCH}|${LINUXDO_SWITCH}|g" "$CONFIG_FILE"
+          sed -i "s|\${LINUXDO_SWITCH}|${LINUXDO_SWITCH}|g" "$CONFIG_FILE"          
+          sed -i "s|\${GITHUB_CLIENT_ID}|${GITHUB_CLIENT_ID}|g" "$CONFIG_FILE"
+          sed -i "s|\${GITHUB_CLIENT_SECRET}|${GITHUB_CLIENT_SECRET}|g" "$CONFIG_FILE"
+          sed -i "s|\${GITHUB_CALLBACK_URL}|${GITHUB_CALLBACK_URL}|g" "$CONFIG_FILE"
+          sed -i "s|\${GITHUB_SWITCH}|${GITHUB_SWITCH}|g" "$CONFIG_FILE"
           
           echo "✅ Environment setup completed."
 

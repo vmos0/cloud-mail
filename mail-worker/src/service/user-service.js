@@ -29,21 +29,37 @@ const userService = {
 			throw new BizError(t('authExpired'), 401);
 		}
 
-		const [account, roleRow, permKeys] = await Promise.all([
+		const [account, roleRow, permKeys, oauthInfo] = await Promise.all([
 			accountService.selectByEmailIncludeDel(c, userRow.email),
 			roleService.selectById(c, userRow.type),
-			userRow.email === c.env.admin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId)
+			userRow.email === c.env.admin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId),
+			// 获取用户的GitHub绑定信息
+			orm(c).select()
+				.from(oauth)
+				.where(eq(oauth.userId, userId))
+				.get()
 		]);
 
 		const user = {};
 		user.userId = userRow.userId;
 		user.sendCount = userRow.sendCount;
 		user.email = userRow.email;
+		user.emailAutoDeleteDays = userRow.emailAutoDeleteDays;
 		user.account = account;
 		user.name = account.name;
 		user.permKeys = permKeys;
 		user.role = roleRow;
 		user.type = userRow.type;
+		// 添加GitHub绑定信息
+		if (oauthInfo) {
+			user.oauthId = oauthInfo.oauthId;
+			user.githubUsername = oauthInfo.username;
+			user.githubAvatar = oauthInfo.avatar;
+		} else {
+			user.oauthId = null;
+			user.githubUsername = null;
+			user.githubAvatar = null;
+		}
 
 		if (c.env.admin === userRow.email) {
 			user.role = constant.ADMIN_ROLE
@@ -58,7 +74,7 @@ const userService = {
 
 		const { password } = params;
 
-		if (password < 6) {
+		if (password.length < 6) {
 			throw new BizError(t('pwdMinLength'));
 		}
 		const { salt, hash } = await cryptoUtils.hashPassword(password);
@@ -79,7 +95,7 @@ const userService = {
 	},
 
 	selectByEmailIncludeDel(c, email) {
-		return orm(c).select().from(user).where(sql`${user.email} COLLATE NOCASE = ${email}`).get();
+		return orm(c).select().from(user).where(eq(user.email, email)).get();
 	},
 
 	selectByIdIncludeDel(c, userId) {
@@ -253,6 +269,13 @@ const userService = {
 		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
 	},
 
+	async setEmailAutoDeleteDays(c, params, userId) {
+		const { emailAutoDeleteDays } = params;
+		// 限制天数范围为1-30天
+		const days = Math.max(1, Math.min(30, emailAutoDeleteDays));
+		await orm(c).update(user).set({ emailAutoDeleteDays: days }).where(eq(user.userId, userId)).run();
+	},
+
 	async setStatus(c, params) {
 
 		const { status, userId } = params;
@@ -324,7 +347,7 @@ const userService = {
 			throw new BizError(t('isRegAccount'));
 		}
 
-		const role = roleService.selectById(c, type);
+		const role = await roleService.selectById(c, type);
 
 		if (!role) {
 			throw new BizError(t('roleNotExist'));
@@ -373,6 +396,23 @@ const userService = {
 			.where(eq(user.regKeyId, regKeyId))
 			.orderBy(desc(user.userId))
 			.all();
+	},
+	
+	// 根据OAuth用户ID查找关联的用户
+	async selectByOauthUserId(c, oauthUserId) {
+		const result = await orm(c)
+			.select()
+			.from(user)
+			.innerJoin(oauth, eq(oauth.userId, user.userId))
+			.where(
+				and(
+					eq(oauth.oauthUserId, oauthUserId),
+					eq(user.isDel, isDel.NORMAL)
+				)
+			)
+			.get();
+		
+		return result ? result.user : null;
 	}
 };
 
