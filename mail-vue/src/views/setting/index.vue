@@ -48,7 +48,7 @@
           </el-tooltip>
         </div>
       </div>
-      <div class="item">
+      <div class="item"
         v-if="settingStore.settings.githubSwitch">
         <div>{{$t('githubBinding')}}</div>
         <div>
