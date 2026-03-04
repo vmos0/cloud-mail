@@ -49,7 +49,7 @@
         </div>
       </div>
       <div class="item">
-        v-if="settingStore.settings.githubSwitch"
+        v-if="settingStore.settings.githubSwitch">
         <div>{{$t('githubBinding')}}</div>
         <div>
           <div v-if="userStore.user.oauthId" class="github-info" @click="showUnbindConfirm">
