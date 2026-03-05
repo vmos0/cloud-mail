@@ -187,6 +187,9 @@ const deleteConfirm = () => {
 const handleSetEmailAutoDeleteDays = () => {
   setEmailAutoDeleteLoading.value = true
   setEmailAutoDeleteDays(emailAutoDeleteDays.value).then(() => {
+
+    userStore.user.emailAutoDeleteDays = emailAutoDeleteDays.value
+    
     ElMessage({
       message: t('saveSuccessMsg'),
       type: 'success',
