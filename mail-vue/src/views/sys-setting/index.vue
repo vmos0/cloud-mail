@@ -1221,16 +1221,19 @@ function getSettings() {
   })
 }
 
-function r2MaxSizeChange() {
-  const form = { r2MaxSize: r2MaxSize.value * 1073741824 }
-  editSetting(form, false)
-}
+const r2MaxSizeChange = debounce(() => {
+  editSetting(
+    { r2MaxSize: r2MaxSize.value * 1073741824 },
+    false
+  )
+}, 500)
 
-function r2FileExpireDaysChange() {
-  const form = { r2FileExpireDays: r2FileExpireDays.value }
-  editSetting(form, false)
-}
-
+const r2FileExpireDaysChange = debounce(() => {
+  editSetting(
+    { r2FileExpireDays: r2FileExpireDays.value },
+    false
+  )
+}, 500)
 
 function openNoticePopup() {
   uiStore.showNotice()
