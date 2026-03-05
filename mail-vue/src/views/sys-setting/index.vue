@@ -1223,12 +1223,12 @@ function getSettings() {
 
 function r2MaxSizeChange() {
   const form = { r2MaxSize: r2MaxSize.value * 1073741824 }
-  editSetting(form)
+  editSetting(form, false)
 }
 
 function r2FileExpireDaysChange() {
   const form = { r2FileExpireDays: r2FileExpireDays.value }
-  editSetting(form)
+  editSetting(form, false)
 }
 
 
