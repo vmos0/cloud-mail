@@ -1189,8 +1189,8 @@ function getSettings() {
     loginOpacity.value = setting.value.loginOpacity
     minEmailPrefix.value = setting.value.minEmailPrefix
     // 初始化R2存储设置，转换为GB和天
-    r2MaxSize.value = Math.round((setting.value.r2MaxSize || 10737418240) / 1073741824)
-    r2FileExpireDays.value = setting.value.r2FileExpireDays || 7
+    r2MaxSize.value = Math.round((setting.value.r2MaxSize ?? 10737418240) / 1073741824)
+    r2FileExpireDays.value = setting.value.r2FileExpireDays ?? 7
     firstLoading.value = false
     backgroundUrl.value = setting.value.background?.startsWith('http') ? setting.value.background : ''
     editTitle.value = setting.value.title
