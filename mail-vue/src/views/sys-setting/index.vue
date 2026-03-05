@@ -248,7 +248,7 @@
                   <el-input-number 
                     v-model="r2MaxSize" 
                     @change="r2MaxSizeChange" 
-                    :min="1" 
+                    :min="0" 
                     :max="1000" 
                     :precision="0" 
                     style="width: 150px"
@@ -270,7 +270,7 @@
                   <el-input-number 
                     v-model="r2FileExpireDays" 
                     @change="r2FileExpireDaysChange" 
-                    :min="1" 
+                    :min="0" 
                     :max="365" 
                     :precision="0" 
                     style="width: 150px"
