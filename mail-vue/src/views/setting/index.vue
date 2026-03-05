@@ -101,7 +101,7 @@ const settingStore = useSettingStore();
 const setPwdLoading = ref(false)
 const setNameShow = ref(false)
 const accountName = ref(null)
-const emailAutoDeleteDays = ref(30)
+const emailAutoDeleteDays = ref(null)
 const setEmailAutoDeleteLoading = ref(false)
 const unbindGithubLoading = ref(false)
 
@@ -187,6 +187,7 @@ const deleteConfirm = () => {
 const handleSetEmailAutoDeleteDays = () => {
   setEmailAutoDeleteLoading.value = true
   setEmailAutoDeleteDays(emailAutoDeleteDays.value).then(() => {
+    userStore.user.emailAutoDeleteDays = emailAutoDeleteDays.value
     ElMessage({
       message: t('saveSuccessMsg'),
       type: 'success',
