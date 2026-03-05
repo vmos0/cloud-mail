@@ -231,11 +231,7 @@ const handleUnbindGithub = () => {
 // 组件挂载时获取用户信息，包括邮件自动删除设置
 onMounted(() => {
   // 从用户信息中获取邮件自动删除设置
-  if (userStore.user.emailAutoDeleteDays) {
-    emailAutoDeleteDays.value = userStore.user.emailAutoDeleteDays
-  } else {
-    emailAutoDeleteDays.value = 30
-  }
+    emailAutoDeleteDays.value = userStore.user.emailAutoDeleteDays ?? 30
 })
 
 
