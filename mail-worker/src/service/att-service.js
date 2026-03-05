@@ -283,6 +283,11 @@ const attService = {
 	async checkAndCleanOldAttachments(c, newAttachmentSize = 0) {
 		const setting = await settingService.query(c);
 		const { r2MaxSize } = setting;
+		
+        // 0 = 不限制存储
+        if (r2MaxSize <= 0) {
+            return;
+        }
 		let totalSize = await this.getTotalSize(c);
 		
 		if (totalSize + newAttachmentSize <= r2MaxSize) {
@@ -316,6 +321,11 @@ const attService = {
 	async cleanExpiredAttachments(c) {
 		const setting = await settingService.query(c);
 		const { r2FileExpireDays } = setting;
+		
+		// 0 = 不删除附件
+        if (r2FileExpireDays <= 0) {
+            return;
+        }
 		
 		// 获取所有过期的附件
 		const expiredAttachments = await c.env.db.prepare(
