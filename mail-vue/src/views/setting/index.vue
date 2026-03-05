@@ -36,7 +36,7 @@
             <el-input-number 
               v-model="emailAutoDeleteDays" 
               @change="handleSetEmailAutoDeleteDays" 
-              :min="1" 
+              :min="0" 
               :max="30" 
               :precision="0" 
               style="width: 150px"
