@@ -597,7 +597,9 @@
           </div>
         </template>
         <div class="forward-set-body">
-          <el-input :placeholder="$t('feishuWebhook')" v-model="feishuWebhook"></el-input>
+          <el-input :placeholder="$t('feishuAppIdDesc')" v-model="feishuAppId"></el-input>
+          <el-input :placeholder="$t('feishuAppSecretDesc')" v-model="feishuAppSecret"></el-input>
+          <el-input :placeholder="$t('feishuChatIdDesc')" v-model="feishuChatId"></el-input>
         </div>
         <template #footer>
           <div class="dialog-footer">
@@ -1194,7 +1196,9 @@ const customDomain = ref('')
 const tgBotStatus = ref(0)
 const tgBotToken = ref('')
 const feishuBotStatus = ref(0)
-const feishuWebhook = ref('')
+const feishuAppId = ref('')
+const feishuAppSecret = ref('')
+const feishuChatId = ref('')
 const forwardEmail = ref([])
 const forwardStatus = ref(0)
 const emailColumnWidth = ref(0)
@@ -1363,7 +1367,9 @@ function openTgSetting() {
 
 function openFeishuSetting() {
   feishuBotStatus.value = setting.value.feishuBotStatus
-  feishuWebhook.value = setting.value.feishuWebhook
+  feishuAppId.value = setting.value.feishuAppId
+  feishuAppSecret.value = setting.value.feishuAppSecret
+  feishuChatId.value = setting.value.feishuChatId
   feishuSettingShow.value = true
 }
 
@@ -1509,7 +1515,9 @@ function tgBotSave() {
 function feishuBotSave() {
   const form = {
     feishuBotStatus: feishuBotStatus.value,
-    feishuWebhook: feishuWebhook.value
+    feishuAppId: feishuAppId.value,
+    feishuAppSecret: feishuAppSecret.value,
+    feishuChatId: feishuChatId.value
   }
   editSetting(form)
 }

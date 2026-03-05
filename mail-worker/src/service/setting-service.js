@@ -76,7 +76,7 @@ const settingService = {
 		setting.githubCallbackUrl = c.env.github_callback_url;
 		setting.githubSwitch = githubSwitch;
 
-		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
+		setting.emailPrefixFilter = (setting.emailPrefixFilter || "").split(",").filter(Boolean);
 
 		c.set?.('setting', setting);
 		return setting;

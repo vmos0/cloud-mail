@@ -50,7 +50,8 @@ export const setting = sqliteTable('setting', {
 	r2MaxSize: integer('r2_max_size').default(10737418240).notNull(),
 	r2FileExpireDays: integer('r2_file_expire_days').default(7).notNull(),
 	feishuBotStatus: integer('feishu_bot_status').default(1).notNull(),
-	feishuWebhook: text('feishu_webhook').default('').notNull(),
-	feishuSecret: text('feishu_secret').default('').notNull()
+	feishuAppId: text('feishu_app_id').default('').notNull(),
+	feishuAppSecret: text('feishu_app_secret').default('').notNull(),
+	feishuChatId: text('feishu_chat_id').default('').notNull()
 });
 export default setting

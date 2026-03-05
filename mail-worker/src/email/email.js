@@ -132,15 +132,11 @@ export async function email(message, env, ctx) {
 
 		emailRow = await emailService.completeReceive({ env }, account ? emailConst.status.RECEIVE : emailConst.status.NOONE, emailRow.emailId);
 
-
 		if (ruleType === settingConst.ruleType.RULE) {
-
 			const emails = ruleEmail.split(',');
-
 			if (!emails.includes(message.to)) {
 				return;
 			}
-
 		}
 
 		//转发到TG

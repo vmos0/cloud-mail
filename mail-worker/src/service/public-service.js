@@ -10,10 +10,15 @@ import verifyUtils from '../utils/verify-utils';
 import { t } from '../i18n/i18n';
 import reqUtils from '../utils/req-utils';
 import dayjs from 'dayjs';
-import { isDel, roleConst } from '../const/entity-const';
 import email from '../entity/email';
 import userService from './user-service';
 import KvConst from '../const/kv-const';
+import { isDel, roleConst, emailConst, settingConst } from '../const/entity-const';
+import emailService from './email-service';
+import accountService from './account-service';
+import settingService from './setting-service';
+import telegramService from './telegram-service';
+import feishuService from './feishu-service';
 
 const publicService = {
 
@@ -169,6 +174,167 @@ const publicService = {
 		await c.env.kv.put(KvConst.PUBLIC_KEY, uuid);
 
 		return {token: uuid}
+	},
+
+	async formSubmit(c, params) {
+
+		let type, siteOrigin, fromEmail, fromName, toEmail, fields = {};
+		const files = [];
+
+		const contentType = c.req.header('content-type') || '';
+		
+		if (contentType.includes('multipart/form-data')) {
+			const formData = await c.req.formData();
+			type = formData.get('type');
+			siteOrigin = formData.get('siteOrigin');
+			fromEmail = formData.get('fromEmail');
+			fromName = formData.get('fromName');
+			toEmail = formData.get('toEmail');
+			
+			const fieldsStr = formData.get('fields');
+			if (fieldsStr) {
+				try {
+					fields = JSON.parse(fieldsStr);
+				} catch (e) {
+					throw new BizError('Invalid fields JSON format');
+				}
+			}
+
+			for (const [key, value] of formData.entries()) {
+				if (value instanceof File) {
+					files.push(value);
+				}
+			}
+		} else {
+			// application/json
+			({ type, siteOrigin, fromEmail, fromName, toEmail, fields } = params);
+		}
+
+		// validate required fields
+		if (!type || !fromEmail || !toEmail) {
+			throw new BizError('Missing required fields: type, fromEmail, toEmail');
+		}
+
+		if (!['subscribe', 'quote'].includes(type)) {
+			throw new BizError('Invalid type, must be "subscribe" or "quote"');
+		}
+
+		if (type === 'quote' && (!fields || Object.keys(fields).length === 0)) {
+			throw new BizError('Missing required field: fields (required for quote type)');
+		}
+
+		// lookup recipient account
+		const accountRow = await accountService.selectByEmailIncludeDel(c, toEmail);
+		if (!accountRow) {
+			throw new BizError(`Recipient account not found: ${toEmail}`);
+		}
+
+		// extract site hostname for display
+		let siteHost = siteOrigin;
+		try {
+			siteHost = new URL(siteOrigin).hostname;
+		} catch (e) {}
+
+		// generate subject
+		const displayName = fromName || fromEmail;
+		const subject = type === 'subscribe'
+			? `[Subscribe] ${fromEmail} from ${siteHost || 'website'}`
+			: `[Quote Request] ${displayName} from ${siteHost || 'website'}`;
+
+		// format fields as HTML
+		const icon = type === 'subscribe' ? '📧' : '📋';
+		const title = type === 'subscribe' ? 'New Subscription' : 'Quote Request';
+
+		const fieldsHtml = Object.entries(fields || {})
+			.map(([key, value]) => {
+				const label = key.charAt(0).toUpperCase() + key.slice(1);
+				const val = String(value || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+				return `<tr><td style="padding:6px 12px;font-weight:bold;vertical-align:top;white-space:nowrap;">${label}</td><td style="padding:6px 12px;">${val}</td></tr>`;
+			}).join('\n');
+
+		const content = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;">
+<h2 style="margin-top:0;">${icon} ${title}</h2>
+<p><strong>From:</strong> ${(fromName || '').replace(/</g, '&lt;')} &lt;${fromEmail}&gt;</p>
+<p><strong>Site:</strong> ${siteHost || 'N/A'}</p>
+<p><strong>Type:</strong> ${type}</p>
+<hr style="border:none;border-top:1px solid #e5e5e5;margin:16px 0;">
+<table style="border-collapse:collapse;width:100%;">
+${fieldsHtml}
+</table>
+</div>`;
+
+		const text = `${title}\nFrom: ${displayName} <${fromEmail}>\nSite: ${siteHost || 'N/A'}\n\n` +
+			Object.entries(fields || {}).map(([k, v]) => `${k}: ${v}`).join('\n');
+
+		// build email record
+		const emailData = {
+			toEmail: toEmail,
+			toName: emailUtils.getName(toEmail),
+			sendEmail: fromEmail,
+			name: fromName || emailUtils.getName(fromEmail),
+			subject: subject,
+			content: content,
+			text: text,
+			cc: '[]',
+			bcc: '[]',
+			recipient: JSON.stringify([{ address: toEmail, name: '' }]),
+			inReplyTo: '',
+			relation: '',
+			messageId: '',
+			userId: accountRow.userId,
+			accountId: accountRow.accountId,
+			isDel: 0,
+			status: emailConst.status.SAVING
+		};
+
+		// insert email record
+		let emailRow = await emailService.receive(c, emailData, [], '');
+
+		// process attachments if any
+		if (files.length > 0) {
+			const attachments = [];
+			for (const file of files) {
+				const arrayBuffer = await file.arrayBuffer();
+				const ext = file.name.substring(file.name.lastIndexOf('.'));
+				// We need constant and fileUtils here, but they might not be imported.
+				// Let's use crypto to generate consistent hashes instead.
+				const hashBuffer = await crypto.subtle.digest('SHA-1', arrayBuffer);
+				const hashArray = Array.from(new Uint8Array(hashBuffer));
+				const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+				const key = `attachment/${hashHex}${ext}`;
+
+				attachments.push({
+					filename: file.name,
+					mimeType: file.type || 'application/octet-stream',
+					content: arrayBuffer,
+					size: file.size,
+					key: key,
+					contentId: '',
+					emailId: emailRow.emailId,
+					userId: emailRow.userId,
+					accountId: emailRow.accountId
+				});
+			}
+
+			const attStore = await import('./att-service.js');
+			await attStore.default.addAtt(c, attachments);
+		}
+
+		// complete receive
+		const result = await emailService.completeReceive(c, emailConst.status.RECEIVE, emailRow.emailId);
+
+		// trigger notifications
+		try {
+			const { tgBotStatus, tgChatId } = await settingService.query(c);
+			if (tgBotStatus === settingConst.tgBotStatus.OPEN && tgChatId) {
+				await telegramService.sendEmailToBot(c, result);
+			}
+			await feishuService.sendEmailToBot(c, result);
+		} catch (e) {
+			console.error('Form submit notification error:', e);
+		}
+
+		return { emailId: result.emailId };
 	},
 
 	async verifyUser(c, params) {

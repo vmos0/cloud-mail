@@ -16,3 +16,13 @@ app.post('/public/addUser', async (c) => {
 	await publicService.addUser(c, await c.req.json());
 	return c.json(result.ok());
 });
+
+app.post('/public/formSubmit', async (c) => {
+	let params = {};
+	const contentType = c.req.header('content-type') || '';
+	if (contentType.includes('application/json')) {
+		params = await c.req.json();
+	}
+	const data = await publicService.formSubmit(c, params);
+	return c.json(result.ok(data));
+});
