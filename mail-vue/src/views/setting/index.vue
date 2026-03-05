@@ -101,7 +101,7 @@ const settingStore = useSettingStore();
 const setPwdLoading = ref(false)
 const setNameShow = ref(false)
 const accountName = ref(null)
-const emailAutoDeleteDays = ref(null)
+const emailAutoDeleteDays = ref(30)
 const setEmailAutoDeleteLoading = ref(false)
 const unbindGithubLoading = ref(false)
 
