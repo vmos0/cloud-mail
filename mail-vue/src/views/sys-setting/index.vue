@@ -600,6 +600,39 @@
           <el-input :placeholder="$t('feishuAppIdDesc')" v-model="feishuAppId"></el-input>
           <el-input :placeholder="$t('feishuAppSecretDesc')" v-model="feishuAppSecret"></el-input>
           <el-input :placeholder="$t('feishuChatIdDesc')" v-model="feishuChatId"></el-input>
+          <div class="tg-msg-label">
+            <span>{{t('from')}}</span>
+            <el-select  v-model="feishuMsgFrom" >
+              <el-option
+                  v-for="item in tgMsgFromOption"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+              />
+            </el-select>
+          </div>
+          <div class="tg-msg-label">
+            <span>{{t('recipient')}}</span>
+            <el-select  v-model="feishuMsgTo" >
+              <el-option
+                  v-for="item in tgMsgToOption"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+              />
+            </el-select>
+          </div>
+          <div class="tg-msg-label">
+            <span>{{t('emailText')}}</span>
+            <el-select  v-model="feishuMsgText" >
+              <el-option
+                  v-for="item in tgMsgTextOption"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+              />
+            </el-select>
+          </div>
         </div>
         <template #footer>
           <div class="dialog-footer">
@@ -1199,6 +1232,9 @@ const feishuBotStatus = ref(0)
 const feishuAppId = ref('')
 const feishuAppSecret = ref('')
 const feishuChatId = ref('')
+const feishuMsgFrom = ref('only-name')
+const feishuMsgTo = ref('show')
+const feishuMsgText = ref('show')
 const forwardEmail = ref([])
 const forwardStatus = ref(0)
 const emailColumnWidth = ref(0)
@@ -1370,6 +1406,9 @@ function openFeishuSetting() {
   feishuAppId.value = setting.value.feishuAppId
   feishuAppSecret.value = setting.value.feishuAppSecret
   feishuChatId.value = setting.value.feishuChatId
+  feishuMsgFrom.value = setting.value.feishuMsgFrom
+  feishuMsgText.value = setting.value.feishuMsgText
+  feishuMsgTo.value = setting.value.feishuMsgTo
   feishuSettingShow.value = true
 }
 
@@ -1517,7 +1556,10 @@ function feishuBotSave() {
     feishuBotStatus: feishuBotStatus.value,
     feishuAppId: feishuAppId.value,
     feishuAppSecret: feishuAppSecret.value,
-    feishuChatId: feishuChatId.value
+    feishuChatId: feishuChatId.value,
+    feishuMsgFrom: feishuMsgFrom.value,
+    feishuMsgTo: feishuMsgTo.value,
+    feishuMsgText: feishuMsgText.value
   }
   editSetting(form)
 }

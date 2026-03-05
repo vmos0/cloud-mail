@@ -52,6 +52,9 @@ export const setting = sqliteTable('setting', {
 	feishuBotStatus: integer('feishu_bot_status').default(1).notNull(),
 	feishuAppId: text('feishu_app_id').default('').notNull(),
 	feishuAppSecret: text('feishu_app_secret').default('').notNull(),
-	feishuChatId: text('feishu_chat_id').default('').notNull()
+	feishuChatId: text('feishu_chat_id').default('').notNull(),
+	feishuMsgFrom: text('feishu_msg_from').default('only-name').notNull(),
+	feishuMsgTo: text('feishu_msg_to').default('show').notNull(),
+	feishuMsgText: text('feishu_msg_text').default('show').notNull()
 });
 export default setting

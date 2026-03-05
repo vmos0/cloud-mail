@@ -50,6 +50,10 @@ const dbInit = {
 			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN feishu_app_id TEXT NOT NULL DEFAULT '';`).run().catch(e => console.warn(e.message));
 			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN feishu_app_secret TEXT NOT NULL DEFAULT '';`).run().catch(e => console.warn(e.message));
 			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN feishu_chat_id TEXT NOT NULL DEFAULT '';`).run().catch(e => console.warn(e.message));
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN feishu_msg_from TEXT NOT NULL DEFAULT 'only-name';`).run().catch(e => console.warn(e.message));
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN feishu_msg_to TEXT NOT NULL DEFAULT 'show';`).run().catch(e => console.warn(e.message));
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN feishu_msg_text TEXT NOT NULL DEFAULT 'show';`).run().catch(e => console.warn(e.message));
+			await c.env.db.prepare(`UPDATE setting SET feishu_msg_text = 'show' WHERE feishu_msg_text = 'hide';`).run().catch(e => console.warn(e.message));
 		} catch (e) {
 			console.warn(`v2_11DB 全局异常：${e.message}`);
 		}

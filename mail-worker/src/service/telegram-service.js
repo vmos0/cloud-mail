@@ -51,7 +51,14 @@ const telegramService = {
 
 		const jwtToken = await jwtUtils.generateToken(c, { emailId: email.emailId })
 
-		const webAppUrl = customDomain ? `${domainUtils.toOssDomain(customDomain)}/api/telegram/getEmail/${jwtToken}` : 'https://www.cloudflare.com/404'
+		let reqOrigin = '';
+		try {
+			const urlObj = new URL(c.req.url);
+			reqOrigin = urlObj.origin;
+		} catch (e) {}
+
+		const baseDomain = customDomain ? domainUtils.toOssDomain(customDomain) : reqOrigin;
+		const webAppUrl = baseDomain ? `${baseDomain}/api/telegram/getEmail/${jwtToken}` : '';
 
 		await Promise.all(tgChatIds.map(async chatId => {
 			try {

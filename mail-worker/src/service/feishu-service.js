@@ -1,31 +1,34 @@
 import settingService from './setting-service';
 import jwtUtils from '../utils/jwt-utils';
 import domainUtils from "../utils/domain-uitls";
+import emailUtils from '../utils/email-utils';
 
 const feishuService = {
 
 	async sendEmailToBot(c, email) {
 
-		let logs = [];
-		const log = (msg) => logs.push(`${new Date().toISOString()} - ${msg}`);
-
 		try {
-			log('fetch setting');
 			const setting = await settingService.query(c);
-			const { feishuBotStatus, feishuAppId, feishuAppSecret, feishuChatId, customDomain } = setting;
-			log(`status: ${feishuBotStatus}, appId: ${feishuAppId}, chat: ${feishuChatId}`);
+			const { 
+				feishuBotStatus, feishuAppId, feishuAppSecret, feishuChatId, 
+				feishuMsgFrom, feishuMsgTo, feishuMsgText, customDomain 
+			} = setting;
 
 			if (feishuBotStatus !== 0 || !feishuAppId || !feishuAppSecret || !feishuChatId) {
-				log('early return (status/params check failed)');
-				await c.env.kv.put('FEISHU_DEBUG_LOG', logs.join('\n'));
 				return;
 			}
 
-			log('generate jwt');
 			const jwtToken = await jwtUtils.generateToken(c, { emailId: email.emailId });
-			const webAppUrl = customDomain ? `${domainUtils.toOssDomain(customDomain)}/api/telegram/getEmail/${jwtToken}` : 'https://www.cloudflare.com/404';
+
+			let reqOrigin = '';
+			try {
+				const urlObj = new URL(c.req.url);
+				reqOrigin = urlObj.origin;
+			} catch (e) {}
+
+			const baseDomain = customDomain ? domainUtils.toOssDomain(customDomain) : reqOrigin;
+			const webAppUrl = baseDomain ? `${baseDomain}/api/telegram/getEmail/${jwtToken}` : '';
 			
-			log('fetch tenant_access_token');
 			const tokenRes = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -34,27 +37,44 @@ const feishuService = {
 			
 			const tokenData = await tokenRes.json();
 			if (tokenData.code !== 0) {
-				log(`Token fail: ${JSON.stringify(tokenData)}`);
-				await c.env.kv.put('FEISHU_DEBUG_LOG', logs.join('\n'));
+				console.error(`获取飞书 Token 失败: ${JSON.stringify(tokenData)}`);
 				return;
 			}
 			const accessToken = tokenData.tenant_access_token;
-			log('got token');
 			
+			const contentArray = [];
+			
+			contentArray.push([{ tag: "text", text: `主题: ${email.subject || '无主题'}` }]);
+			
+			if (feishuMsgFrom === 'only-name') {
+				contentArray.push([{ tag: "text", text: `发件人: ${email.name || ''}` }]);
+			} else if (feishuMsgFrom === 'show') {
+				contentArray.push([{ tag: "text", text: `发件人: ${email.name || ''} <${email.sendEmail}>` }]);
+			}
+
+			if (feishuMsgTo === 'show') {
+				contentArray.push([{ tag: "text", text: `收件人: ${email.toName || ''} <${email.toEmail}>` }]);
+			}
+
+			if (feishuMsgText === 'show') {
+				const textRaw = email.text || email.content || '';
+				const text = (emailUtils.formatText(textRaw) || emailUtils.htmlToText(textRaw))
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;');
+				contentArray.push([{ tag: "text", text: `\n\n${text ? text.substring(0, 200) : '无文本内容可用。'}\n\n` }]);
+			}
+
+			if (webAppUrl) {
+				contentArray.push([{ tag: "a", href: webAppUrl, text: "👉 查看完整邮件" }]);
+			}
+
 			const postContent = {
 				zh_cn: {
 					title: "📩 收到新邮件",
-					content: [
-						[{ tag: "text", text: `主题: ${email.subject || '无主题'}` }],
-						[{ tag: "text", text: `发件人: ${email.name || ''} <${email.sendEmail}>` }],
-						[{ tag: "text", text: `收件人: ${email.toName || ''} <${email.toEmail}>` }],
-						[{ tag: "text", text: `\n预览:\n${email.text ? email.text.substring(0, 200) : '无文本内容可用。'}\n\n` }],
-						[{ tag: "a", href: webAppUrl, text: "👉 查看完整邮件" }]
-					]
+					content: contentArray
 				}
 			};
 
-			log('send msg API');
 			const msgRes = await fetch('https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id', {
 				method: 'POST',
 				headers: {
@@ -69,20 +89,16 @@ const feishuService = {
 			});
 
 			if (!msgRes.ok) {
-				log(`Msg HTTP FAIL: ${msgRes.status} -> ${await msgRes.text()}`);
+				console.error(`转发 Feishu 失败 status: ${msgRes.status} response: ${await msgRes.text()}`);
 			} else {
 				const msgData = await msgRes.json();
 				if (msgData.code !== 0) {
-					log(`Msg API fail: ${JSON.stringify(msgData)}`);
-				} else {
-					log('Msg SUCCESS!');
+					console.error(`转发 Feishu API 错误: ${JSON.stringify(msgData)}`);
 				}
 			}
 		} catch (e) {
-			log(`EXCEPTION: ${e.message} ${e.stack}`);
+			console.error(`转发 Feishu 异常: ${e.message} ${e.stack}`);
 		}
-
-		await c.env.kv.put('FEISHU_DEBUG_LOG', logs.join('\n'));
 	}
 
 }
