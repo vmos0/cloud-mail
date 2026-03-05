@@ -48,6 +48,9 @@ export const setting = sqliteTable('setting', {
 	minEmailPrefix: integer('min_email_prefix').default(0).notNull(),
 	emailPrefixFilter: text('email_prefix_filter').default('').notNull(),
 	r2MaxSize: integer('r2_max_size').default(10737418240).notNull(),
-	r2FileExpireDays: integer('r2_file_expire_days').default(7).notNull()
+	r2FileExpireDays: integer('r2_file_expire_days').default(7).notNull(),
+	feishuBotStatus: integer('feishu_bot_status').default(1).notNull(),
+	feishuWebhook: text('feishu_webhook').default('').notNull(),
+	feishuSecret: text('feishu_secret').default('').notNull()
 });
 export default setting

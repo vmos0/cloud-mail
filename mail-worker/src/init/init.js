@@ -28,8 +28,21 @@ const dbInit = {
 		await this.v2_7DB(c);
 		await this.v2_8DB(c);
 		await this.v2_9DB(c);
+		await this.v2_10DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async v2_10DB(c) {
+		try {
+			await c.env.db.batch([
+				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN feishu_bot_status INTEGER NOT NULL DEFAULT 1;`),
+				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN feishu_webhook TEXT NOT NULL DEFAULT '';`),
+				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN feishu_secret TEXT NOT NULL DEFAULT '';`)
+			]);
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
 	},
 
 	async v2_9DB(c) {
