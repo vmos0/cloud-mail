@@ -33,7 +33,7 @@ crons = ["0 16 * * *"]	#定时任务每天晚上12点执行
 
 
 [vars]
-orm_log = false
+#orm_log = false
 domain = "${DOMAIN}"				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
 admin = "${ADMIN}"				#管理员的邮箱	示例: admin@example.com
 jwt_secret = "${JWT_SECRET}"			#jwt令牌的密钥,随便填一串字符串
