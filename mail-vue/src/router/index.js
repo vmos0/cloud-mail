@@ -103,11 +103,11 @@ router.beforeEach((to, from, next) => {
 
     const token = localStorage.getItem('token')
 
-    if (!token && !['login','githubCallback'].includes(to.name)) {
+    if (!token && to.name !== 'login') {
         return next({name: 'login'})
     }
 
-    if (!token && ['login','githubCallback'].includes(to.name)) {
+    if (!token && to.name === 'login') {
         loadBackground(next)
         return
     }
