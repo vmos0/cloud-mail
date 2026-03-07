@@ -19,7 +19,7 @@ app.get('/oauth/github/callback', async (c) => {
 	// 从URL参数中获取code
 	const code = c.req.query('code');
 	// 重定向到前端登录页面，带上code参数
-	const redirectUrl = `https://mail.ygyang.uk/github/callback?code=${code}`;
+	const redirectUrl = `/github/callback?code=${code}`;
 	return c.redirect(redirectUrl, 302);
 });
 
