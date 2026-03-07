@@ -19,7 +19,7 @@ app.get('/oauth/github/callback', async (c) => {
 	// 从URL参数中获取code
 	const code = c.req.query('code');
 	// 重定向到前端登录页面，带上code参数
-	const redirectUrl = `${GH_CALLBACK_URL}?code=${code}`;
+	const redirectUrl = `${process.env.GH_CALLBACK_URL}?code=${code}`;
 	return c.redirect(redirectUrl, 302);
 });
 
