@@ -164,9 +164,7 @@
 </template>
 
 <script setup>
-let oauthHandled = false
 import router from "@/router";
-import { onMounted } from "vue"
 import {computed, nextTick, reactive, ref} from "vue";
 import {login} from "@/request/login.js";
 import {register} from "@/request/login.js";
@@ -288,9 +286,7 @@ function githubLogin() {
       `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=user:email`
 }
 
-onMounted(() => {
-  oauthGetUser()
-})
+oauthGetUser();
 
 async function oauthGetUser() {
   const params = new URLSearchParams(window.location.search)
@@ -300,13 +296,6 @@ async function oauthGetUser() {
   const provider = pathname.includes('github') ? 'github' : 'linuxdo'
 
   if (code) {
-    if (oauthHandled) return
-    oauthHandled = true
-
-    setTimeout(() => {
-       window.dispatchEvent(new Event('resize'))
-    }, 150)
-
     oauthLoading.value = true
     let oauthLoginPromise
     
