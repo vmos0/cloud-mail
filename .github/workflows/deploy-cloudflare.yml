@@ -105,6 +105,10 @@ jobs:
           if [ -z "$LINUXDO_CLIENT_ID" ] || [ -z "$LINUXDO_CLIENT_SECRET" ]; then
             sed -i '/^linuxdo_client_id = /,/^linuxdo_switch = /d' "$CONFIG_FILE"
           fi
+
+          if [ -z "$$GH_CLIENT_ID" ] || [ -z "$GH_CLIENT_SECRET" ]; then
+            sed -i '/^gh_client_id = /,/^gh_switch = /d' "$CONFIG_FILE"
+          fi
           
           if [ -z "$CUSTOM_DOMAIN" ]; then
             sed -i '/\[\[routes\]\]/,/^$/d' "$CONFIG_FILE"

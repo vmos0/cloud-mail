@@ -103,7 +103,7 @@ router.beforeEach((to, from, next) => {
 
     const token = localStorage.getItem('token')
 
-    if (!token && to.name !== 'login') {
+    if (!token && !['login','githubCallback'].includes(to.name)) {
         return next({name: 'login'})
     }
 

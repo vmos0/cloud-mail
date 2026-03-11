@@ -90,7 +90,7 @@ const oauthService = {
 
 		if (!userRow) {
 			// 自动生成默认邮箱地址
-			const defaultEmail = `${userInfo.username}@cnmailcn.dpdns.org`;
+			const defaultEmail = `${userInfo.username}@${c.env.domain[0]}`;
 			// 检查邮箱是否已存在
 			let isEmailAvailable = false;
 			let emailSuggestions = [];
@@ -152,7 +152,9 @@ const oauthService = {
 
 		const userRes = await fetch('https://api.github.com/user', {
 			headers: {
-				Authorization: 'Bearer ' + token.access_token
+				Authorization: 'Bearer ' + token.access_token,
+				Accept: "application/vnd.github+json",
+				"User-Agent": "cloud-mail"
 			}
 		});
 
@@ -189,7 +191,7 @@ const oauthService = {
 
 		if (!userRow) {
 			// 自动生成默认邮箱地址
-			const defaultEmail = `${userInfo.username}@cnmailcn.dpdns.org`;
+			const defaultEmail = `${userInfo.username}@${c.env.domain[0]}`;
 			// 检查邮箱是否已存在
 			let isEmailAvailable = false;
 			let emailSuggestions = [];
@@ -212,7 +214,8 @@ const oauthService = {
 				token: null,
 				defaultEmail,
 				isEmailAvailable,
-				emailSuggestions
+				emailSuggestions,
+				provider: "github"
 			};
 		}
 
@@ -235,7 +238,7 @@ const oauthService = {
 	// 生成邮箱建议
 	async generateEmailSuggestions(c, username) {
 		const suggestions = [];
-		const domains = ['cnmailcn.dpdns.org'];
+		const domains = c.env.domain;
 		const suffixes = ['a', 'b', 'c', '2025', '123'];
 		
 		// 尝试生成5个建议
