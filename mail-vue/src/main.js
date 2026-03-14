@@ -1,3 +1,11 @@
+if (location.search.includes("code=")) {
+  if (!sessionStorage.getItem("oauth_refresh")) {
+    sessionStorage.setItem("oauth_refresh", "1")
+    location.reload()
+  } else {
+    sessionStorage.removeItem("oauth_refresh")
+  }
+}
 import {createApp} from 'vue';
 import App from './App.vue';
 import router from './router';
