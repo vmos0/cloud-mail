@@ -311,9 +311,14 @@ async function oauthGetUser() {
       if (!data.token) {
         // 设置默认邮箱
         if (data.defaultEmail) {
-          bindForm.email = data.defaultEmail;
+          const [username, domain] = data.defaultEmail.split('@');
+          bindForm.email = username;
+          const index = domainList.findIndex(d => d === '@' + domain);
+          if (index !== -1) {
+              suffix.value = domainList[index];
+          }    
         }
-        
+
         // 处理邮箱建议
         if (data.emailSuggestions && data.emailSuggestions.length > 0) {
           emailSuggestions.value = data.emailSuggestions;
