@@ -14,14 +14,33 @@ const settingService = {
 	async refresh(c) {
 		const settingRow = await orm(c).select().from(setting).get();
 		settingRow.resendTokens = JSON.parse(settingRow.resendTokens);
-		c.set('setting', settingRow);
+		settingRow.brevoTokens = JSON.parse(settingRow.brevoTokens || '{}');
+		
+		// 兼容不同 Hono 版本
+		if (typeof c.set === 'function') {
+			c.set('setting', settingRow);
+		} else {
+			c.setting = settingRow;
+		}
+		
 		await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
 	},
 
 	async query(c) {
+		// 尝试从 context 获取设置，兼容不同 Hono 版本
+		let settingData = null;
+		
+		// 尝试使用 c.setting 直接访问
+		if (c.setting) {
+			settingData = c.setting;
+		}
+		// 尝试使用 c.get 方法
+		else if (typeof c.get === 'function') {
+			settingData = c.get('setting');
+		}
 
-		if (c.get?.('setting')) {
-			return c.get('setting')
+		if (settingData) {
+			return settingData;
 		}
 
 		const setting = await c.env.kv.get(KvConst.SETTING, { type: 'json' });
@@ -75,7 +94,6 @@ const settingService = {
 		setting.githubClientId = c.env.github_client_id;
 		setting.githubCallbackUrl = c.env.github_callback_url;
 		setting.githubSwitch = githubSwitch;
-
 		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
 
 		c.set?.('setting', setting);
@@ -99,6 +117,12 @@ const settingService = {
 		Object.keys(settingRow.resendTokens).forEach(key => {
 			settingRow.resendTokens[key] = `${settingRow.resendTokens[key].slice(0, 12)}******`;
 		});
+
+		Object.keys(settingRow.brevoTokens).forEach(key => {
+			settingRow.brevoTokens[key] = `${settingRow.brevoTokens[key].slice(0, 12)}******`;
+		});
+
+		settingRow.feishuAppSecret = settingRow.feishuAppSecret ? `${settingRow.feishuAppSecret.slice(0, 12)}******` : null;
 
 		settingRow.s3AccessKey = settingRow.s3AccessKey ? `${settingRow.s3AccessKey.slice(0, 12)}******` : null;
 		settingRow.s3SecretKey = settingRow.s3SecretKey ? `${settingRow.s3SecretKey.slice(0, 12)}******` : null;
@@ -131,11 +155,17 @@ const settingService = {
 			if (!resendTokens[domain]) delete resendTokens[domain];
 		});
 
+		let brevoTokens = { ...settingData.brevoTokens, ...params.brevoTokens };
+		Object.keys(brevoTokens).forEach(domain => {
+			if (!brevoTokens[domain]) delete brevoTokens[domain];
+		});
+
 		if (Array.isArray(params.emailPrefixFilter)) {
 			params.emailPrefixFilter = params.emailPrefixFilter + '';
 		}
 
 		params.resendTokens = JSON.stringify(resendTokens);
+		params.brevoTokens = JSON.stringify(brevoTokens);
 		await orm(c).update(setting).set({ ...params }).returning().get();
 		await this.refresh(c);
 	},

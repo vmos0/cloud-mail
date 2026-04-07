@@ -189,6 +189,38 @@
                   </el-button>
                 </div>
               </div>
+              <div class="setting-item">
+                <div><span>Brevo Token</span></div>
+                <div>
+                  <el-button class="opt-button" style="margin-top: 0" @click="openBrevoList" size="small"
+                             type="primary">
+                    <Icon icon="ic:round-list" width="18" height="18"/>
+                  </el-button>
+                  <el-button class="opt-button" style="margin-top: 0" @click="openBrevoForm" size="small"
+                             type="primary">
+                    <Icon icon="material-symbols:add-rounded" width="16" height="16"/>
+                  </el-button>
+                </div>
+              </div>
+              <div class="setting-item">
+                <div>
+                  <span>{{ $t('emailProvider') }}</span>
+                  <el-tooltip effect="dark" content="选择发送邮件时使用的服务商">
+                    <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+                  </el-tooltip>
+                </div>
+                <div>
+                  <el-select
+                      @change="change"
+                      style="width: 120px;"
+                      v-model="setting.emailProvider"
+                      placeholder="Select"
+                  >
+                    <el-option label="Resend" value="resend"/>
+                    <el-option label="Brevo" value="brevo"/>
+                  </el-select>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -301,6 +333,15 @@
                 <div class="forward">
                   <span>{{ setting.forwardStatus === 0 ? $t('enabled') : $t('disabled') }}</span>
                   <el-button class="opt-button" size="small" type="primary" @click="openThirdEmailSetting">
+                    <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
+                  </el-button>
+                </div>
+              </div>
+              <div class="setting-item">
+                <div><span>飞书推送</span></div>
+                <div class="forward">
+                  <span>{{ setting.feishuBotStatus === 0 ? $t('enabled') : $t('disabled') }}</span>
+                  <el-button class="opt-button" size="small" type="primary" @click="openFeishuSetting">
                     <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
                   </el-button>
                 </div>
@@ -463,6 +504,20 @@
           <el-button type="primary" :loading="settingLoading" @click="saveResendToken">{{ $t('save') }}</el-button>
         </form>
       </el-dialog>
+      <el-dialog v-model="brevoTokenFormShow" title="Brevo Token" width="340" @closed="cleanBrevoTokenForm">
+        <form>
+          <el-select style="margin-bottom: 15px" v-model="brevoTokenForm.domain" placeholder="Select">
+            <el-option
+                v-for="item in settingStore.domainList"
+                :key="item"
+                :label="item"
+                :value="item"
+            />
+          </el-select>
+          <el-input type="text" placeholder="输入 Brevo API Key" v-model="brevoTokenForm.token"/>
+          <el-button type="primary" :loading="settingLoading" @click="saveBrevoToken">{{ $t('save') }}</el-button>
+        </form>
+      </el-dialog>
       <el-dialog v-model="r2DomainShow" :title="$t('addOsDomain')" width="340"
                  @closed="r2DomainInput = setting.r2Domain">
         <form>
@@ -576,6 +631,159 @@
         </template>
       </el-dialog>
       <el-dialog
+          v-model="feishuSettingShow"
+          class="forward-dialog feishu-dialog"
+      >
+        <template #header>
+          <div class="forward-head">
+            <span class="forward-set-title">飞书推送</span>
+            <el-tooltip effect="dark" content="配置飞书推送功能，需要先在飞书开放平台创建应用">
+              <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+            </el-tooltip>
+          </div>
+        </template>
+        <div class="forward-set-body">
+          <div class="feishu-section-title">{{ $t('basicConfig') }}</div>
+          <el-input placeholder="App ID" v-model="feishuAppId"></el-input>
+          <el-input type="password" placeholder="App Secret" v-model="feishuAppSecret"></el-input>
+          
+          <div class="feishu-config-row">
+            <span class="feishu-label">接收方式</span>
+            <el-select v-model="feishuReceiveType" style="width: 100%;">
+              <el-option label="🏠 群聊 (Chat)" :value="0"/>
+              <el-option label="👤 个人 (Personal)" :value="1"/>
+            </el-select>
+          </div>
+          
+          <el-input-tag v-if="feishuReceiveType === 0" tag-type="warning" placeholder="接收消息的群聊 ID (open_group_id)，多个用逗号分隔" v-model="feishuChatId"></el-input-tag>
+          <el-input-tag v-else tag-type="success" placeholder="飞书 Open ID (ou_xxxxxxxx)，多个用逗号分隔" v-model="feishuOpenId"></el-input-tag>
+          
+          <div class="feishu-section-title">{{ $t('msgStyleConfig') }}</div>
+          <div class="feishu-config-row">
+            <span class="feishu-label">{{ $t('headerTemplate') }}</span>
+            <el-select v-model="feishuHeaderTemplate" style="width: 100%;">
+              <el-option label="🔵 蓝色 (Blue)" value="blue"/>
+              <el-option label="🟣 紫色 (Purple)" value="purple"/>
+              <el-option label="🟡 黄色 (Yellow)" value="yellow"/>
+              <el-option label="🟢 绿色 (Green)" value="green"/>
+              <el-option label="🔴 红色 (Red)" value="red"/>
+              <el-option label="⚪ 白色 (White)" value="white"/>
+              <el-option label="⚫ 无头 (No Header)" value="none"/>
+            </el-select>
+          </div>
+          <div class="feishu-config-row">
+            <span class="feishu-label">{{ $t('showSender') }}</span>
+            <el-switch v-model="feishuShowSender" :active-value="0" :inactive-value="1"/>
+          </div>
+          <div class="feishu-config-row">
+            <span class="feishu-label">{{ $t('showRecipient') }}</span>
+            <el-switch v-model="feishuShowRecipient" :active-value="0" :inactive-value="1"/>
+          </div>
+          <div class="feishu-config-row">
+            <span class="feishu-label">{{ $t('showTime') }}</span>
+            <el-switch v-model="feishuShowTime" :active-value="0" :inactive-value="1"/>
+          </div>
+          <div class="feishu-config-row">
+            <span class="feishu-label">{{ $t('showViewButton') }}</span>
+            <el-switch v-model="feishuShowViewButton" :active-value="0" :inactive-value="1"/>
+          </div>
+          
+          <div class="feishu-section-title">{{ $t('advancedConfig') }}</div>
+          <el-input :placeholder="$t('customDomainDesc')" v-model="feishuCustomDomain"></el-input>
+          <div class="feishu-config-row">
+            <span class="feishu-label">{{ $t('sendFailureNotice') }}</span>
+            <el-switch v-model="feishuFailureNotice" :active-value="0" :inactive-value="1"/>
+          </div>
+          <div class="feishu-section-title">{{ $t('getChatId') }}</div>
+          <el-button type="primary" size="small" @click="openFeishuChatIdHelp" style="width: 100%;">
+            {{ $t('getChatIdHelp') }}
+          </el-button>
+        </div>
+        <template #footer>
+          <div class="dialog-footer">
+            <el-switch v-model="feishuBotStatus" :active-value="0" :inactive-value="1" active-text="启用"
+                       inactive-text="禁用"/>
+            <el-button :loading="settingLoading" type="primary" @click="feishuSave">
+              {{ $t('save') }}
+            </el-button>
+          </div>
+        </template>
+      </el-dialog>
+      <el-dialog
+          v-model="feishuChatIdHelpShow"
+          :title="feishuReceiveType === 1 ? '获取飞书 Open ID' : '获取飞书群聊 ID'"
+          class="feishu-help-dialog"
+          width="600"
+      >
+        <div class="feishu-help-content" v-if="feishuReceiveType === 1">
+          <el-alert type="info" :closable="false">
+            <p><strong>使用个人模式推送通知到你自己</strong></p>
+          </el-alert>
+          <el-steps direction="vertical" :active="1" style="margin-top: 20px;">
+            <el-step title="步骤 1: 获取 Open ID">
+              <template #description>
+                <div class="step-desc">
+                  <p>1. 打开飞书桌面端</p>
+                  <p>2. 点击左下角 <strong>头像</strong> → <strong>设置</strong></p>
+                  <p>3. 在「账户信息」或「关于」中找到你的 <strong>Open ID</strong></p>
+                  <p>4. Open ID 格式类似：<code>ou_xxxxxxxxxxxxxxxx</code></p>
+                </div>
+              </template>
+            </el-step>
+            <el-step title="步骤 2: 复制 Open ID">
+              <template #description>
+                <div class="step-desc">
+                  <p>将你的 Open ID 填入上面的输入框即可</p>
+                  <p><strong>注意：</strong>使用个人模式需要将飞书应用设置为「可用」状态</p>
+                </div>
+              </template>
+            </el-step>
+          </el-steps>
+        </div>
+        <div class="feishu-help-content" v-else>
+          <el-steps direction="vertical" :active="1">
+            <el-step title="步骤 1: 在飞书中复制群链接">
+              <template #description>
+                <div class="step-desc">
+                  <p>1. 打开飞书，进入要接收通知的群聊</p>
+                  <p>2. 点击右上角的群设置（⋮ 或齿轮图标）</p>
+                  <p>3. 找到并点击 <strong>"复制链接"</strong> 或 <strong>"分享群聊"</strong></p>
+                  <p>4. 链接格式类似：<code>https://your-team.feishu.cn/share/base/oc_xxxxxxxx</code></p>
+                </div>
+              </template>
+            </el-step>
+            <el-step title="步骤 2: 提取群聊 ID">
+              <template #description>
+                <div class="step-desc">
+                  <p>从链接中提取 <code>oc_</code> 开头的部分</p>
+                  <p>例如：<code>https://your-team.feishu.cn/share/base/<strong>oc_a1b2c3d4e5f6</strong></code></p>
+                  <p>群聊 ID 就是：<strong>oc_a1b2c3d4e5f6</strong></p>
+                </div>
+              </template>
+            </el-step>
+            <el-step title="步骤 3: 或者使用 API 获取">
+              <template #description>
+                <div class="step-desc">
+                  <p>1. 访问 <a href="https://open.feishu.cn/tool" target="_blank">飞书开放平台 - 开发工具</a></p>
+                  <p>2. 选择你的应用</p>
+                  <p>3. 在 <strong>"在线调试"</strong> 中调用：</p>
+                  <pre>GET https://open.feishu.cn/open-apis/chat/list</pre>
+                  <p>4. 返回结果中的 <code>chat_id</code> 就是群聊 ID</p>
+                </div>
+              </template>
+            </el-step>
+          </el-steps>
+          
+          <div class="feishu-help-tip">
+            <Icon icon="material-symbols:info" width="20" height="20"/>
+            <span>提示：群聊 ID 通常以 <code>oc_</code> 开头，多个群聊 ID 用逗号分隔</span>
+          </div>
+        </div>
+        <template #footer>
+          <el-button type="primary" @click="feishuChatIdHelpShow = false">知道了</el-button>
+        </template>
+      </el-dialog>
+      <el-dialog
           v-model="thirdEmailShow"
           class="forward-dialog"
       >
@@ -631,6 +839,14 @@
       </el-dialog>
       <el-dialog class="resend-table" v-model="showResendList" :title="$t('resendTokenList')">
         <el-table :data="resendList">
+          <el-table-column :min-width="emailColumnWidth" property="key" :label="$t('domain')"
+                           :show-overflow-tooltip="true"/>
+          <el-table-column :width="tokenColumnWidth" property="value" label="Token" fixed="right"
+                           :show-overflow-tooltip="true"/>
+        </el-table>
+      </el-dialog>
+      <el-dialog class="resend-table" v-model="showBrevoList" title="Brevo Token 列表">
+        <el-table :data="brevoList">
           <el-table-column :min-width="emailColumnWidth" property="key" :label="$t('domain')"
                            :show-overflow-tooltip="true"/>
           <el-table-column :width="tokenColumnWidth" property="value" label="Token" fixed="right"
@@ -1062,9 +1278,11 @@ const accountStore = useAccountStore();
 const userStore = useUserStore();
 const editTitleShow = ref(false)
 const resendTokenFormShow = ref(false)
+const brevoTokenFormShow = ref(false)
 const r2DomainShow = ref(false)
 const turnstileShow = ref(false)
 const tgSettingShow = ref(false)
+const feishuSettingShow = ref(false)
 const noticePopupShow = ref(false)
 const thirdEmailShow = ref(false)
 const forwardRulesShow = ref(false)
@@ -1073,6 +1291,7 @@ const showResendList = ref(false)
 const settingStore = useSettingStore();
 const uiStore = useUiStore();
 const logStore = useLogStore();
+const showBrevoList = ref(false)
 const {settings: setting} = storeToRefs(settingStore);
 const editTitle = ref('')
 const settingLoading = ref(false)
@@ -1111,6 +1330,10 @@ const filteredLogs = computed(() => {
   return logStore.getFilteredLogs(logFilter)
 })
 const resendTokenForm = reactive({
+  domain: '',
+  token: '',
+})
+const brevoTokenForm = reactive({
   domain: '',
   token: '',
 })
@@ -1167,6 +1390,20 @@ const ruleEmail = ref([])
 const tgMsgFrom = ref('')
 const tgMsgTo = ref('')
 const tgMsgText = ref('')
+const feishuAppId = ref('')
+const feishuAppSecret = ref('')
+const feishuChatId = ref([])
+const feishuOpenId = ref([])
+const feishuReceiveType = ref(0)
+const feishuBotStatus = ref(1)
+const feishuHeaderTemplate = ref('blue')
+const feishuShowSender = ref(0)
+const feishuShowRecipient = ref(0)
+const feishuShowTime = ref(0)
+const feishuShowViewButton = ref(0)
+const feishuCustomDomain = ref('')
+const feishuFailureNotice = ref(1)
+const feishuChatIdHelpShow = ref(false)
 
 const tgMsgFromOption = [{label: t('show'), value: 'show'}, {label: t('hide'), value: 'hide'}, {label: t('onlyName'), value:'only-name'}]
 const tgMsgToOption = [{label: t('show'), value: 'show'}, {label: t('hide'), value: 'hide'}]
@@ -1181,7 +1418,7 @@ logStore.initAutoCleanup()
 function getSettings() {
   // 记录系统设置页面加载
   logStore.log('info', 'system', '系统设置页面开始加载')
-  
+
   settingQuery().then(settingData => {
     setting.value = settingData
     settingStore.domainList = settingData.domainList;
@@ -1260,7 +1497,7 @@ function resetAddS3Form() {
 
 const resendList = computed(() => {
 
-  let list = Object.keys(setting.value.resendTokens).map(key => {
+  let list = Object.keys(setting.value.resendTokens || {}).map(key => {
     return {
       key: key,
       value: setting.value.resendTokens[key]
@@ -1276,6 +1513,18 @@ const resendList = computed(() => {
     tokenColumnWidth.value = getTextWidth(value) + 30;
 
   }
+
+  return list;
+});
+
+const brevoList = computed(() => {
+
+  let list = Object.keys(setting.value.brevoTokens || {}).map(key => {
+    return {
+      key: key,
+      value: setting.value.brevoTokens[key]
+    };
+  })
 
   return list;
 });
@@ -1324,12 +1573,64 @@ function openTgSetting() {
   tgSettingShow.value = true
 }
 
+function openFeishuSetting() {
+  feishuBotStatus.value = setting.value.feishuBotStatus || 1
+  feishuAppId.value = setting.value.feishuAppId || ''
+  feishuAppSecret.value = setting.value.feishuAppSecret || ''
+  feishuChatId.value = []
+  if (setting.value.feishuChatId) {
+    const list = setting.value.feishuChatId.split(',')
+    feishuChatId.value.push(...list)
+  }
+  feishuOpenId.value = []
+  if (setting.value.feishuOpenId) {
+    const list = setting.value.feishuOpenId.split(',')
+    feishuOpenId.value.push(...list)
+  }
+  feishuReceiveType.value = setting.value.feishuReceiveType ?? 0
+  feishuHeaderTemplate.value = setting.value.feishuHeaderTemplate || 'blue'
+  feishuShowSender.value = setting.value.feishuShowSender ?? 0
+  feishuShowRecipient.value = setting.value.feishuShowRecipient ?? 0
+  feishuShowTime.value = setting.value.feishuShowTime ?? 0
+  feishuShowViewButton.value = setting.value.feishuShowViewButton ?? 0
+  feishuCustomDomain.value = setting.value.feishuCustomDomain || ''
+  feishuFailureNotice.value = setting.value.feishuFailureNotice ?? 1
+  feishuSettingShow.value = true
+}
+
+function feishuSave() {
+  const form = {
+    feishuAppId: feishuAppId.value,
+    feishuAppSecret: feishuAppSecret.value,
+    feishuBotStatus: feishuBotStatus.value,
+    feishuChatId: feishuChatId.value + '',
+    feishuOpenId: feishuOpenId.value + '',
+    feishuReceiveType: feishuReceiveType.value,
+    feishuHeaderTemplate: feishuHeaderTemplate.value,
+    feishuShowSender: feishuShowSender.value,
+    feishuShowRecipient: feishuShowRecipient.value,
+    feishuShowTime: feishuShowTime.value,
+    feishuShowViewButton: feishuShowViewButton.value,
+    feishuCustomDomain: feishuCustomDomain.value,
+    feishuFailureNotice: feishuFailureNotice.value
+  }
+  editSetting(form)
+}
+
 function openNoticePopupSetting() {
   noticePopupShow.value = true
 }
 
 function openResendList() {
   showResendList.value = true
+}
+
+function openBrevoList() {
+  showBrevoList.value = true
+}
+
+function openFeishuChatIdHelp() {
+  feishuChatIdHelpShow.value = true
 }
 
 function resetNoticeForm() {
@@ -1588,6 +1889,11 @@ function openResendForm() {
   resendTokenFormShow.value = true
 }
 
+function openBrevoForm() {
+  brevoTokenForm.domain = setting.value.domainList[0]
+  brevoTokenFormShow.value = true
+}
+
 function saveResendToken() {
   const settingForm = {
     resendTokens: {}
@@ -1595,6 +1901,19 @@ function saveResendToken() {
   const domain = resendTokenForm.domain.slice(1)
   settingForm.resendTokens[domain] = resendTokenForm.token
   editSetting(settingForm)
+}
+
+function saveBrevoToken() {
+  const settingForm = {
+    brevoTokens: {}
+  }
+  const domain = brevoTokenForm.domain.slice(1)
+  settingForm.brevoTokens[domain] = brevoTokenForm.token
+  editSetting(settingForm)
+}
+
+function cleanBrevoTokenForm() {
+  brevoTokenForm.token = ''
 }
 
 function backupSetting() {
@@ -1622,6 +1941,8 @@ function change(e) {
   delete settingForm.s3AccessKey
   delete settingForm.s3SecretKey
   delete settingForm.resendTokens
+  delete settingForm.brevoTokens
+  delete settingForm.feishuAppSecret
   editSetting(settingForm, false)
 }
 
@@ -1827,8 +2148,10 @@ function editSetting(settingForm, refreshStatus = true) {
     editTitleShow.value = false
     r2DomainShow.value = false
     resendTokenFormShow.value = false
+    brevoTokenFormShow.value = false
     turnstileShow.value = false
     tgSettingShow.value = false
+    feishuSettingShow.value = false
     thirdEmailShow.value = false
     forwardRulesShow.value = false
     addVerifyCountShow.value = false
@@ -2110,6 +2433,102 @@ function editSetting(settingForm, refreshStatus = true) {
   }
 }
 
+// Feishu dialog specific styles
+.feishu-dialog {
+  .feishu-section-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--el-text-color-primary);
+    margin: 15px 0 10px 0;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+  
+  .feishu-config-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    
+    .feishu-label {
+      font-size: 14px;
+      color: var(--el-text-color-regular);
+    }
+  }
+}
+
+// Feishu help dialog styles
+.feishu-help-dialog {
+  .feishu-help-content {
+    padding: 10px 0;
+    
+    .step-desc {
+      margin-top: 8px;
+      line-height: 1.8;
+      
+      p {
+        margin: 5px 0;
+        font-size: 13px;
+      }
+      
+      strong {
+        color: var(--el-color-primary);
+        font-weight: 600;
+      }
+      
+      code {
+        background: var(--el-fill-color-light);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        color: var(--el-color-danger);
+      }
+      
+      pre {
+        background: var(--el-fill-color);
+        padding: 10px;
+        border-radius: 4px;
+        margin: 8px 0;
+        overflow-x: auto;
+        font-size: 12px;
+        font-family: 'Courier New', monospace;
+      }
+      
+      a {
+        color: var(--el-color-primary);
+        text-decoration: none;
+        
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+  
+  .feishu-help-tip {
+    margin-top: 20px;
+    padding: 12px;
+    background: var(--el-color-info-light-9);
+    border-left: 3px solid var(--el-color-info);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--el-color-info);
+    
+    code {
+      background: var(--el-fill-color-light);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      color: var(--el-color-danger);
+    }
+  }
+}
+
 .error-image {
   background: var(--light-ill);
   height: 100%;
@@ -2337,4 +2756,3 @@ form .el-button {
 }
 
 </style>
-

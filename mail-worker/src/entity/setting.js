@@ -48,6 +48,20 @@ export const setting = sqliteTable('setting', {
 	minEmailPrefix: integer('min_email_prefix').default(0).notNull(),
 	emailPrefixFilter: text('email_prefix_filter').default('').notNull(),
 	r2MaxSize: integer('r2_max_size').default(10737418240).notNull(),
-	r2FileExpireDays: integer('r2_file_expire_days').default(7).notNull()
+	r2FileExpireDays: integer('r2_file_expire_days').default(7).notNull(),
+	brevoTokens: text('brevo_tokens').default("{}").notNull(),
+	feishuAppId: text('feishu_app_id').default('').notNull(),
+	feishuAppSecret: text('feishu_app_secret').default('').notNull(),
+	feishuBotStatus: integer('feishu_bot_status').default(1).notNull(),
+	feishuChatId: text('feishu_chat_id').default('').notNull(),
+	feishuOpenId: text('feishu_open_id').default('').notNull(),
+	feishuReceiveType: integer('feishu_receive_type').default(0).notNull(), // 0=群聊, 1=个人
+	feishuHeaderTemplate: text('feishu_header_template').default('blue').notNull(),
+	feishuShowSender: integer('feishu_show_sender').default(0).notNull(),
+	feishuShowRecipient: integer('feishu_show_recipient').default(0).notNull(),
+	feishuShowTime: integer('feishu_show_time').default(0).notNull(),
+	feishuShowViewButton: integer('feishu_show_view_button').default(0).notNull(),
+	feishuCustomDomain: text('feishu_custom_domain').default('').notNull(),
+	feishuFailureNotice: integer('feishu_failure_notice').default(1).notNull()
 });
 export default setting

@@ -237,7 +237,6 @@ onMounted(() => {
     emailAutoDeleteDays.value = userStore.user.emailAutoDeleteDays ?? 30
 })
 
-
 function submitPwd() {
 
   if (!form.password) {

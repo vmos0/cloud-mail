@@ -28,6 +28,8 @@ const dbInit = {
 		await this.v2_7DB(c);
 		await this.v2_8DB(c);
 		await this.v2_9DB(c);
+		await this.v3_0DB(c);
+		await this.v3_1DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
 	},
@@ -38,6 +40,59 @@ const dbInit = {
 		} catch (e) {
 			console.warn(`跳过字段：${e.message}`);
 		}
+	},
+
+	async v3_0DB(c) {
+		// 添加 Brevo 和飞书相关字段
+		const ADD_COLUMN_SQL_LIST = [
+			`ALTER TABLE setting ADD COLUMN brevo_tokens TEXT NOT NULL DEFAULT '{}';`,
+			`ALTER TABLE setting ADD COLUMN feishu_app_id TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN feishu_app_secret TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN feishu_bot_status INTEGER NOT NULL DEFAULT 1;`,
+			`ALTER TABLE setting ADD COLUMN feishu_chat_id TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN feishu_header_template TEXT NOT NULL DEFAULT 'blue';`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_sender INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_recipient INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_time INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_view_button INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_custom_domain TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN feishu_failure_notice INTEGER NOT NULL DEFAULT 1;`,
+			`ALTER TABLE email ADD COLUMN brevo_email_id TEXT;`,
+			`ALTER TABLE email ADD COLUMN email_provider TEXT NOT NULL DEFAULT 'resend';`
+		];
+
+		const promises = ADD_COLUMN_SQL_LIST.map(async (sql) => {
+			try {
+				await c.env.db.prepare(sql).run();
+			} catch (e) {
+				console.warn(`跳过字段添加：${e.message}`);
+			}
+		});
+
+		await Promise.all(promises);
+	},
+
+	async v3_1DB(c) {
+		// 添加飞书增强配置字段
+		const ADD_COLUMN_SQL_LIST = [
+			`ALTER TABLE setting ADD COLUMN feishu_header_template TEXT NOT NULL DEFAULT 'blue';`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_sender INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_recipient INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_time INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_view_button INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_custom_domain TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN feishu_failure_notice INTEGER NOT NULL DEFAULT 1;`
+		];
+
+		const promises = ADD_COLUMN_SQL_LIST.map(async (sql) => {
+			try {
+				await c.env.db.prepare(sql).run();
+			} catch (e) {
+				console.warn(`跳过字段添加：${e.message}`);
+			}
+		});
+
+		await Promise.all(promises);
 	},
 
 	async v2_8DB(c) {

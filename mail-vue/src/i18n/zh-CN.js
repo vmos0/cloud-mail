@@ -342,6 +342,18 @@ const zh = {
     searchEmail: '搜索邮箱',
     searchSender: '搜索发件人',
     userEmail: '用户邮箱',
+    // 飞书推送配置
+    basicConfig: '基础配置',
+    msgStyleConfig: '消息样式配置',
+    advancedConfig: '高级配置',
+    headerTemplate: '头部模板',
+    showSender: '显示发件人',
+    showRecipient: '显示收件人',
+    showTime: '显示时间',
+    showViewButton: '显示查看按钮',
+    sendFailureNotice: '发送失败通知',
+    getChatId: '获取群聊 ID',
+    getChatIdHelp: '查看获取教程',    
     pleaseBindEmail: '请注册绑定邮箱'
 }
 export default zh

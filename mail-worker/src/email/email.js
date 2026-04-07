@@ -10,6 +10,7 @@ import emailUtils from '../utils/email-utils';
 import roleService from '../service/role-service';
 import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
+import feishuService from '../service/feishu-service';
 
 export async function email(message, env, ctx) {
 
@@ -145,6 +146,18 @@ export async function email(message, env, ctx) {
 		//转发到TG
 		if (tgBotStatus === settingConst.tgBotStatus.OPEN && tgChatId) {
 			await telegramService.sendEmailToBot({ env }, emailRow)
+		}
+
+		//转发到飞书
+		const feishuSetting = await settingService.query({ env });
+		const { feishuBotStatus, feishuChatId } = feishuSetting;
+		console.log(`[Feishu] 邮件接收流程 - 状态:${feishuBotStatus}, 群聊 ID:${feishuChatId?feishuChatId.substring(0,8)+'...':'空'}`);
+		if (feishuBotStatus === 0 && feishuChatId) {
+			try {
+				await feishuService.sendEmailToFeishu({ env }, emailRow);
+			} catch (e) {
+				console.error('转发飞书失败:', e);
+			}
 		}
 
 		//转发到其他邮箱

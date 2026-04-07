@@ -260,6 +260,18 @@ const wenyan = {
     addResendTokenDesc: '请输重发令牌',
     resetPassword: '重置密码',
     emptyUserNameMsg: '请输用户名',
+    // 飞书推送配置
+    basicConfig: '基础之设',
+    msgStyleConfig: '消息样式之设',
+    advancedConfig: '进阶之设',
+    headerTemplate: '头部模板',
+    showSender: '显发信人',
+    showRecipient: '显收信人',
+    showTime: '显时间',
+    showViewButton: '显查看之钮',
+    sendFailureNotice: '发送败之通知',
+    getChatId: '取群聊ID',
+    getChatIdHelp: '查看取法',     
     pleaseBindEmail: '请注册绑定邮箱'
 };
 

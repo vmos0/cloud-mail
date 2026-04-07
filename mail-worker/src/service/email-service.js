@@ -21,7 +21,9 @@ import domainUtils from '../utils/domain-uitls';
 import account from "../entity/account";
 import { att } from '../entity/att';
 import telegramService from './telegram-service';
-import r2Service from './r2-service';
+import resendService from './resend-service';
+import brevoService from './brevo-service';
+import feishuService from './feishu-service';
 
 const emailService = {
 
@@ -46,7 +48,6 @@ const emailService = {
 			} else {
 				emailId = 9999999999;
 			}
-
 		}
 
 		if (isNaN(allReceive)) {
@@ -161,11 +162,10 @@ const emailService = {
 			text, //邮件纯文本
 			content, //邮件内容
 			subject, //邮件标题
-			attachments, //附件
-			manyType
+			attachments //附件
 		} = params;
 
-		const { resendTokens, r2Domain, send, domainList } = await settingService.query(c);
+		const { resendTokens, brevoTokens, r2Domain, send, domainList, emailProvider } = await settingService.query(c);
 
 		let { imageDataList, html } = await attService.toImageUrlHtml(c, content);
 
@@ -209,7 +209,6 @@ const emailService = {
 				if (roleRow.sendType === 'day') throw new BizError(t('daySendLack'), 403);
 				if (roleRow.sendType === 'count') throw new BizError(t('totalSendLack'), 403);
 			}
-
 		}
 
 		const accountRow = await accountService.selectById(c, accountId);
@@ -230,6 +229,26 @@ const emailService = {
 
 		}
 
+		const domain = emailUtils.getDomain(accountRow.email);
+		const resendToken = resendTokens[domain];
+		const brevoToken = brevoTokens[domain];
+
+		//确定使用的邮件服务商
+		let provider = emailProvider || 'resend';
+
+		//如果接收方存在站外邮箱，又没有配置任何 token
+		if (!resendToken && !brevoToken && !allInternal) {
+			throw new BizError(t('noEmailProviderToken'));
+		}
+
+		//如果指定的服务商没有配置 token，尝试使用另一个
+		if (provider === 'brevo' && !brevoToken && resendToken) {
+			provider = 'resend';
+		} else if (provider === 'resend' && !resendToken && brevoToken) {
+			provider = 'brevo';
+		}
+
+		//没有发件人名字自动截取
 		if (!name) {
 			name = emailUtils.getName(accountRow.email);
 		}
@@ -249,10 +268,48 @@ const emailService = {
 
 		}
 
-		//把图片标签cid标签切换会通用url
+		let sendResult = {};
+		let emailProviderId = null;
+
+		//存在站外时邮箱全部由选定的服务商发送
+		if (!allInternal) {
+			const sendForm = {
+				from: `${name} <${accountRow.email}>`,
+				to: [...receiveEmail],
+				subject: subject,
+				text: text,
+				html: html,
+				attachments: [...imageDataList, ...attachments]
+			};
+
+			if (sendType === 'reply') {
+				sendForm.headers = {
+					'in-reply-to': emailRow.messageId,
+					'references': emailRow.messageId
+				};
+			}
+
+			if (provider === 'brevo') {
+				sendResult = await brevoService.sendEmail(c, brevoToken, sendForm);
+				emailProviderId = sendResult.data?.messageId;
+			} else {
+				sendResult = await resendService.sendEmail(c, resendToken, sendForm);
+				emailProviderId = sendResult.data?.id;
+			}
+		}
+
+		const { data, error } = sendResult;
+
+		if (error) {
+			throw new BizError(error.message);
+		}
+
 		imageDataList = imageDataList.map(item => ({...item, contentId: `<${item.contentId}>`}))
+
+		//把图片标签cid标签切换会通用url
 		html = this.imgReplace(html, imageDataList, r2Domain);
 
+		//封装数据保存到数据库
 		const emailData = {};
 		emailData.sendEmail = accountRow.email;
 		emailData.name = name;
@@ -260,188 +317,187 @@ const emailService = {
 		emailData.content = html;
 		emailData.text = text;
 		emailData.accountId = accountId;
+		emailData.status = emailConst.status.SENT;
 		emailData.type = emailConst.type.SEND;
 		emailData.userId = userId;
-		emailData.status = emailConst.status.SENT;
-		emailData.toEmail = '';
-		emailData.toName = '';
+		emailData.emailProvider = provider;
+		emailData.resendEmailId = provider === 'resend' ? emailProviderId : null;
+		emailData.brevoEmailId = provider === 'brevo' ? emailProviderId : null;
 
-		const emailDataList = [];
-		const resendEmailList = [];
-		const localEmailList = [];
+		const recipient = [];
 
-		// 分离站内邮件和外部邮件
-		receiveEmail.forEach(recipientEmail => {
-			const recipientDomain = '@' + emailUtils.getDomain(recipientEmail);
-			if (domainList.includes(recipientDomain)) {
-				localEmailList.push(recipientEmail);
-			} else {
-				resendEmailList.push(recipientEmail);
-			}
+		receiveEmail.forEach(item => {
+			recipient.push({ address: item, name: '' });
 		});
 
-		// 处理外部邮件发送
-		if (resendEmailList.length > 0) {
-			const domain = emailUtils.getDomain(accountRow.email);
-			const resendToken = resendTokens[domain];
-
-			if (!resendToken) {
-				throw new BizError(t('noResendToken'));
-			}
-
-			let resendResult = null;
-			const resend = new Resend(resendToken);
-
-			//如果是分开发送
-			if (manyType === 'divide') {
-
-				let sendFormList = [];
-
-				resendEmailList.forEach(email => {
-					const sendForm = {
-						from: `${name} <${accountRow.email}>`,
-						to: [email],
-						subject: subject,
-						text: text,
-						html: html,
-						attachments: [...imageDataList, ...(attachments || [])]
-					};
-
-					if (sendType === 'reply') {
-						sendForm.headers = {
-							'in-reply-to': emailRow.messageId,
-							'references': emailRow.messageId
-						};
-					}
-
-					sendFormList.push(sendForm);
-				});
-
-				resendResult = await resend.batch.send(sendFormList);
-
-			} else {
-
-				const sendForm = {
-					from: `${name} <${accountRow.email}>`,
-					to: [...resendEmailList],
-					subject: subject,
-					text: text,
-					html: html,
-					attachments: [...imageDataList, ...(attachments || [])]
-				};
-
-				if (sendType === 'reply') {
-					sendForm.headers = {
-						'in-reply-to': emailRow.messageId,
-						'references': emailRow.messageId
-					};
-				}
-
-				resendResult = await resend.emails.send(sendForm);
-
-			}
-
-			const { data, error } = resendResult;
-
-			if (error) {
-				throw new BizError(error.message);
-			}
-
-			// 添加发送记录
-				if (manyType === 'divide') {
-					resendEmailList.forEach((item, index) => {
-						const emailDataItem = { ...emailData };
-						emailDataItem.resendEmailId = data.data[index].id;
-						emailDataItem.recipient = JSON.stringify([{ address: item, name: '' }]);
-						emailDataItem.toEmail = item;
-						emailDataItem.toName = '';
-						emailDataList.push(emailDataItem);
-					});
-				} else {
-					const emailDataItem = { ...emailData };
-					emailDataItem.resendEmailId = data.id;
-					emailDataItem.recipient = JSON.stringify(resendEmailList.map(item => ({ address: item, name: '' })));
-					emailDataItem.toEmail = resendEmailList.join(',');
-					emailDataItem.toName = '';
-					emailDataList.push(emailDataItem);
-				}
-		}
-
-		// 处理站内邮件
-		for (const recipientEmail of localEmailList) {
-			// 添加发送记录
-			const emailDataItem = { ...emailData };
-			emailDataItem.recipient = JSON.stringify([{ address: recipientEmail, name: '' }]);
-			emailDataItem.toEmail = recipientEmail;
-			emailDataItem.toName = '';
-			emailDataList.push(emailDataItem);
-
-			// 查找收件人账户
-			const recipientAccount = await accountService.selectByEmailIncludeDel(c, recipientEmail);
-			
-			if (recipientAccount && recipientAccount.isDel === isDel.NORMAL) {
-				// 创建收件记录
-				const receiveData = {
-					name: name,
-					sendEmail: accountRow.email,
-					toEmail: recipientEmail,
-					subject: subject,
-					content: html,
-					text: text,
-					accountId: recipientAccount.accountId,
-					userId: recipientAccount.userId,
-					type: emailConst.type.RECEIVE,
-					status: emailConst.status.RECEIVE,
-					recipient: JSON.stringify([{ address: recipientEmail, name: '' }]),
-					unread: emailConst.unread.UNREAD,
-					toName: ''
-				};
-				
-				if (sendType === 'reply') {
-					receiveData.inReplyTo = emailRow.messageId;
-					receiveData.relation = emailRow.messageId;
-				}
-				
-				// 插入收件记录
-				const receiveEmailRow = await orm(c).insert(email).values(receiveData).returning().get();
-				
-				// 保存附件到收件记录
-				if (imageDataList.length > 0) {
-					await attService.saveArticleAtt(c, imageDataList, recipientAccount.userId, recipientAccount.accountId, receiveEmailRow.emailId);
-				}
-				
-				if (attachments?.length > 0 && await r2Service.hasOSS(c)) {
-					await attService.saveSendAtt(c, attachments, recipientAccount.userId, recipientAccount.accountId, receiveEmailRow.emailId);
-				}
-			}
-		}
+		emailData.recipient = JSON.stringify(recipient);
 
 		if (sendType === 'reply') {
-			emailDataList.forEach(emailDataItem => {
-				emailDataItem.inReplyTo = emailRow.messageId;
-				emailDataItem.relation = emailRow.messageId;
-			});
+			emailData.inReplyTo = emailRow.messageId;
+			emailData.relation = emailRow.messageId;
 		}
 
-		if (roleRow.sendCount) {
+		//如果权限有发送次数增加用户发送次数
+		if (roleRow.sendCount && roleRow.sendType !== 'internal') {
 			await userService.incrUserSendCount(c, receiveEmail.length, userId);
 		}
 
-const emailRowList = await Promise.all(
-    emailDataList.map(async (emailDataItem) => {
-        const emailRow = await orm(c)
-            .insert(email)
-            .values(emailDataItem)
-            .returning()
-            .get();
+		//保存到数据库并返回结果
+		const emailResult = await orm(c).insert(email).values(emailData).returning().get();
 
-        return emailRow;
-    })
-);
+		//保存内嵌附件
+		if (imageDataList.length > 0) {
+			if (imageDataList.length > 10) {
+				throw new BizError(t('imageAttLimit'));
+			}
+			await attService.saveArticleAtt(c, imageDataList, userId, accountId, emailResult.emailId);
+		}
 
-return emailRowList;
+		//保存普通附件
+		if (attachments?.length > 0) {
+			if (attachments.length > 10) {
+				throw new BizError(t('attLimit'));
+			}
+			await attService.saveSendAtt(c, attachments, userId, accountId, emailResult.emailId);
+		}
 
-},
+		const attList = await attService.selectByEmailIds(c, [emailResult.emailId]);
+		emailResult.attList = attList;
+
+		//如果全是站内接收方，直接写入数据库
+		if (allInternal) {
+			await this.HandleOnSiteEmail(c, receiveEmail, emailResult, attList);
+		}
+
+		const dateStr = dayjs().format('YYYY-MM-DD');
+		let daySendTotal = await c.env.kv.get(kvConst.SEND_DAY_COUNT + dateStr);
+
+		//记录每天发件次数统计
+		if (!daySendTotal) {
+			await c.env.kv.put(kvConst.SEND_DAY_COUNT + dateStr, JSON.stringify(receiveEmail.length), { expirationTtl: 60 * 60 * 24 });
+		} else  {
+			daySendTotal = Number(daySendTotal) + receiveEmail.length
+			await c.env.kv.put(kvConst.SEND_DAY_COUNT + dateStr, JSON.stringify(daySendTotal), { expirationTtl: 60 * 60 * 24 });
+		}
+
+		// 发送邮件后推送飞书通知
+		try {
+			await feishuService.sendEmailNotifyFeishu(c, emailResult, recipient);
+		} catch (e) {
+			console.error('[Feishu] 发送邮件推送失败:', e);
+		}
+
+		return [ emailResult ];
+	},
+
+	//处理站内邮件发送
+	async HandleOnSiteEmail(c, receiveEmail, sendEmailData, attList) {
+
+		const { noRecipient  } = await settingService.query(c);
+
+		//查询所有收件人账号信息
+		let accountList = await orm(c).select().from(account).where(inArray(account.email, receiveEmail)).all();
+
+		//查询所有收件人权限身份
+		const userIds = accountList.map(accountRow => accountRow.userId);
+		let roleList = await roleService.selectByUserIds(c, userIds);
+
+		//封装数据库准备保存到数据库
+		const emailDataList = [];
+
+		for (const email of receiveEmail) {
+
+			//把发件人邮件改成收件
+			const emailValues = {...sendEmailData}
+			emailValues.status = emailConst.status.RECEIVE;
+			emailValues.type = emailConst.type.RECEIVE;
+			emailValues.toEmail = email;
+			emailValues.toName = emailUtils.getName(email);
+			emailValues.emailId = null;
+
+			const accountRow = accountList.find(accountRow => accountRow.email === email);
+
+			//如果收件人存在就把邮件信息改成收件人的
+			if (accountRow) {
+
+				//设置给收件人保存
+				emailValues.userId = accountRow.userId;
+				emailValues.accountId = accountRow.accountId;
+				emailValues.type = emailConst.type.RECEIVE;
+				emailValues.status = emailConst.status.RECEIVE;
+
+				const roleRow = roleList.find(roleRow => roleRow.userId === accountRow.userId);
+
+				let { banEmail, availDomain } = roleRow;
+
+				//如果收件人没有这个域名的使用权限和有邮件拦截，就把邮件改为拒收状态
+				if (email !== c.env.admin) {
+
+					if (!roleService.hasAvailDomainPerm(availDomain, email)) {
+						emailValues.status = emailConst.status.BOUNCED;
+						emailValues.message = `The recipient <${email}> is not authorized to use this domain.`;
+					} else if(roleService.isBanEmail(banEmail, sendEmailData.sendEmail)) {
+						emailValues.status = emailConst.status.BOUNCED;
+						emailValues.message = `The recipient <${email}> is disabled from receiving emails.`;
+					}
+
+				}
+
+				emailDataList.push(emailValues);
+
+			} else {
+
+				//设置无收件人邮件信息
+				emailValues.userId = 0;
+				emailValues.accountId = 0;
+				emailValues.type = emailConst.type.RECEIVE;
+				emailValues.status = emailConst.status.NOONE;
+
+				//如果无人收件关闭改为拒收
+				if (noRecipient === settingConst.noRecipient.CLOSE) {
+					emailValues.status = emailConst.status.BOUNCED;
+					emailValues.message = `Recipient not found: <${email}>`;
+				}
+
+				emailDataList.push(emailValues);
+
+			}
+
+		}
+
+		//保存邮件
+		const receiveEmailList = emailDataList.filter(emailRow => emailRow.status === emailConst.status.RECEIVE || emailRow.status === emailConst.status.NOONE);
+
+		for (const emailData of receiveEmailList) {
+
+			const emailRow = await orm(c).insert(email).values(emailData).returning().get();
+
+			//设置附件保存
+			for (const attRow of attList) {
+				const attValues = {...attRow};
+				attValues.emailId = emailRow.emailId;
+				attValues.accountId = emailRow.accountId;
+				attValues.userId = emailRow.userId;
+				attValues.attId = null;
+				await orm(c).insert(att).values(attValues).run();
+			}
+
+		}
+
+		const bouncedEmail = emailDataList.find(emailRow => emailRow.status === emailConst.status.BOUNCED);
+
+		let status = emailConst.status.DELIVERED;
+		let message = ''
+		//如果有拒收邮件，就把发件人的邮件改成拒收
+		if (bouncedEmail) {
+			const messageJson = { message: bouncedEmail.message };
+			message = JSON.stringify(messageJson);
+			status = emailConst.status.BOUNCED;
+		}
+
+		await orm(c).update(email).set({ status, message: message }).where(eq(email.emailId, sendEmailData.emailId)).run();
+
+	},
 
 	imgReplace(content, cidAttList, r2domain) {
 
@@ -543,6 +599,10 @@ return emailRowList;
 			status: status,
 			message: message
 		}).where(eq(email.resendEmailId, resendEmailId)).returning().get();
+	},
+
+	updateEmailStatusByBrevo(c, params) {
+		return brevoService.updateEmailStatusByBrevo(c, params);
 	},
 
 	async selectUserEmailCountList(c, userIds, type, del = isDel.NORMAL) {

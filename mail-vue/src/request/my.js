@@ -19,4 +19,3 @@ export function setEmailAutoDeleteDays(days) {
 export function unbindGithub() {
     return http.delete('/oauth/unbindGithub')
 }
-

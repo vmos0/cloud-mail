@@ -175,6 +175,18 @@ const en = {
     toBotTokenDesc: 'Multiple user chat_ids, separated by commas',
     otherEmailDesc: 'emails can be forwarded to external email, but must be verified via cloudflare',
     otherEmailInputDesc: 'Separate multiple email addresses with commas',
+    // Feishu push configuration
+    basicConfig: 'Basic Configuration',
+    msgStyleConfig: 'Message Style',
+    advancedConfig: 'Advanced Configuration',
+    headerTemplate: 'Header Template',
+    showSender: 'Show Sender',
+    showRecipient: 'Show Recipient',
+    showTime: 'Show Time',
+    showViewButton: 'Show View Button',
+    sendFailureNotice: 'Send Failure Notification',
+    getChatId: 'Get Chat ID',
+    getChatIdHelp: 'View Tutorial',
     forwardingRulesDesc: 'Rule-based forwarding only forwards emails received by the specified address',
     ruleEmailsInputDesc: 'Separate multiple email addresses with commas',
     resendTokenList: 'Token List',
@@ -324,7 +336,17 @@ const en = {
     searchUser: 'Search by user',
     searchEmail: 'Search by Email',
     searchSender: 'Search by Sender',
-    userEmail: 'Email Address'
+    userEmail: 'Email Address',
+    // Feishu push configuration
+    basicConfig: 'Basic Configuration',
+    msgStyleConfig: 'Message Style',
+    advancedConfig: 'Advanced Configuration',
+    headerTemplate: 'Header Template',
+    showSender: 'Show Sender',
+    showRecipient: 'Show Recipient',
+    showTime: 'Show Time',
+    showViewButton: 'Show View Button',
+    sendFailureNotice: 'Send Failure Notification'
 }
 
 export default en

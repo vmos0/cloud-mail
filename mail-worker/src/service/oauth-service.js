@@ -307,7 +307,6 @@ const oauthService = {
 	async unbindGithub(c, userId) {
 		await orm(c).delete(oauth).where(eq(oauth.userId, userId)).run();
 	},
-
 }
 
 export default  oauthService

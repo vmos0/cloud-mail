@@ -20,7 +20,7 @@
             <div class="item-title" >{{ $t('recipient') }}</div>
             <el-select
                 ref="mySelect"
-                class="write-select"
+                class="select write-select"
                 popper-class="write-select"
                 :show-arrow="false"
                 :no-match-text="' '"

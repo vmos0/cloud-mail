@@ -23,4 +23,3 @@ app.put('/my/setEmailAutoDeleteDays', async (c) => {
 	return c.json(result.ok());
 });
 
-
