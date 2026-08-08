@@ -18,7 +18,7 @@
         <el-table-column :label="$t('role')" prop="name" :min-width="roleWidth">
           <template #default="props">
             <div class="role-name">
-              <span>{{ props.row.name }}</span>
+              <span>{{ $t(props.row.name) }}</span>
               <span v-if="props.row.isDefault"><el-tag class="def-tag">{{ $t('default') }}</el-tag></span>
             </div>
           </template>
@@ -27,7 +27,7 @@
         <el-table-column v-if="desShow" :label="$t('description')" min-width="200" prop="description">
           <template #default="props">
             <div class="description">
-              <span>{{ props.row.description }}</span>
+              <span>{{ $t(props.row.description) }}</span>
             </div>
           </template>
         </el-table-column>
@@ -119,7 +119,7 @@
                 <el-input-number v-if="form.sendType === 'day' || form.sendType === 'count'" v-model="form.sendCount" controls-position="right" :min="0" :max="99999" size="small"
                                  :placeholder="$t('total')">
                 </el-input-number>
-                  <el-select v-model="form.sendType" placeholder="Select" size="small"
+                  <el-select v-model="form.sendType" :placeholder="$t('select')" size="small"
                              :style="`width: ${ locale === 'zh' ? 65 : 85 }px;margin-left: 5px;`">
                     <el-option :label="$t('total')" value="count"/>
                     <el-option :label="$t('daily')" value="day"/>
@@ -252,9 +252,9 @@ function setDef(role) {
 }
 
 function delRole(role) {
-  ElMessageBox.confirm(t('delConfirm', {msg: role.name}), {
+  ElMessageBox.confirm(t('delConfirm', {msg: t(role.name)}), {
     confirmButtonText: t('confirm'),
-    cancelButtonText: t('confirm'),
+    cancelButtonText: t('cancel'),
     type: 'warning'
   }).then(() => {
     roleDelete(role.roleId).then(() => {
@@ -340,8 +340,8 @@ function openRoleSet(role) {
   dialogType.type = 'set'
   roleFormShow.value = true
   form.sort = role.sort
-  form.name = role.name
-  form.description = role.description
+  form.name = t(role.name)
+  form.description = t(role.description)
   form.sendType = role.sendType
   form.sendCount = role.sendCount
   form.accountCount = role.accountCount

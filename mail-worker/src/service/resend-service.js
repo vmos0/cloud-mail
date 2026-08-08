@@ -1,6 +1,7 @@
 import emailService from './email-service';
 import { emailConst } from '../const/entity-const';
 import BizError from '../error/biz-error';
+import { Resend } from 'resend';
 
 const resendService = {
 
@@ -43,7 +44,12 @@ const resendService = {
 		if (!emailRow) {
 			throw new BizError('更新邮件状态记录失败');
 		}
+	},
 
+	async sendEmail(c, resendToken, sendForm) {
+		const token = resendToken || c.env.resend_token;
+		const resend = new Resend(token);
+		return await resend.emails.send(sendForm);
 	}
 }
 

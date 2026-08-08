@@ -3,6 +3,7 @@ import NProgress from 'nprogress';
 import {useUiStore} from "@/store/ui.js";
 import {useSettingStore} from "@/store/setting.js";
 import {cvtR2Url} from "@/utils/convert.js";
+import i18n from '@/i18n'
 
 const routes = [
     {
@@ -55,10 +56,36 @@ const routes = [
 
     },
     {
+        path: '/public-inbox',
+        name: 'publicInbox',
+        component: () => import('@/views/public-inbox/index.vue'),
+        meta: {
+            public: true
+        }
+    },
+    {
+        path: '/public-inbox/:email',
+        name: 'publicInboxEmail',
+        component: () => import('@/views/public-inbox/index.vue'),
+        meta: {
+            public: true
+        }
+    },
+    {
         path: '/login',
         name: 'login',
         component: () => import('@/views/login/index.vue')
     },
+    {
+        path: '/github/callback',
+        name: 'githubCallback',
+        component: () => import('@/views/login/index.vue')
+    },
+    {
+        path: '/linuxdo/callback',
+        name: 'linuxdoCallback',
+        component: () => import('@/views/login/index.vue')
+    },    
     {
         path: '/test',
         name: 'test',
@@ -100,7 +127,12 @@ router.beforeEach((to, from, next) => {
 
     const token = localStorage.getItem('token')
 
-    if (!token && to.name !== 'login') {
+    if (to.meta.public) {
+        next()
+        return
+    }
+
+    if (!token && !['login','githubCallback','linuxdoCallback'].includes(to.name)) {
         return next({name: 'login'})
     }
 
@@ -138,7 +170,7 @@ function loadBackground(next) {
         };
 
         setTimeout(() => {
-            console.warn("背景加载超时，已放行");
+            console.warn(i18n.global.t('backgroundLoadTimeout'));
             next()
         }, 3000)
 

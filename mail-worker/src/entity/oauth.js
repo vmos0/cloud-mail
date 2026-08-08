@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 export const oauth = sqliteTable('oauth', {
 	oauthId: integer('oauth_id').primaryKey({ autoIncrement: true }),
 	oauthUserId: text('oauth_user_id'),
+	platform: integer('platform').default(0).notNull(),
 	username: text('username'),
 	name: text('name'),
 	avatar: text('avatar'),

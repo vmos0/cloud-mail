@@ -22,6 +22,10 @@ import domainUtils from '../utils/domain-uitls';
 import account from "../entity/account";
 import { att } from '../entity/att';
 import telegramService from './telegram-service';
+import resendService from './resend-service';
+import brevoService from './brevo-service';
+import feishuService from './feishu-service';
+import verifyUtils from '../utils/verify-utils';
 
 const emailService = {
 
@@ -46,7 +50,6 @@ const emailService = {
 			} else {
 				emailId = 9999999999;
 			}
-
 		}
 
 		if (isNaN(allReceive)) {
@@ -164,7 +167,7 @@ const emailService = {
 			attachments = [] //附件
 		} = params;
 
-		const { resendTokens, r2Domain, send, domainList } = await settingService.query(c);
+		const { resendTokens, brevoTokens, r2Domain, send, domainList, emailProvider } = await settingService.query(c);
 
 		let { imageDataList, html } = await attService.toImageUrlHtml(c, content);
 
@@ -208,7 +211,6 @@ const emailService = {
 				if (roleRow.sendType === 'day') throw new BizError(t('daySendLack'), 403);
 				if (roleRow.sendType === 'count') throw new BizError(t('totalSendLack'), 403);
 			}
-
 		}
 
 		const accountRow = await accountService.selectById(c, accountId);
@@ -231,11 +233,23 @@ const emailService = {
 
 		const domain = emailUtils.getDomain(accountRow.email);
 		const resendToken = resendTokens[domain];
+		const brevoToken = brevoTokens[domain];
 		const useCloudflareEmail = !!c.env.email;
 
-		//如果接收方存在站外邮箱，又没有发信服务
-		if (!useCloudflareEmail && !resendToken && !allInternal) {
+		//获取邮件服务商
+		if (!emailProvider) throw new BizError(t('emailProviderDesc'));
+		let provider = emailProvider;
+
+		//如果接收方存在站外邮箱，又没有配置任何 token
+		if (!useCloudflareEmail && !resendToken && !brevoToken && !allInternal) {
 			throw new BizError(t('noSendProvider'));
+		}
+
+		//如果指定的服务商没有配置 token，尝试使用另一个
+		if (provider === 'brevo' && !brevoToken && resendToken) {
+			provider = 'resend';
+		} else if (provider === 'resend' && !resendToken && brevoToken) {
+			provider = 'brevo';
 		}
 
 		//没有发件人名字自动截取
@@ -259,40 +273,39 @@ const emailService = {
 		}
 
 		let sendResult = {};
+		let emailProviderId = null;
 
-		//存在站外邮箱时，如果配置了 Cloudflare Email Service 就优先使用，否则使用 Resend
+		//存在站外邮箱时，如果配置了 Cloudflare Email Service 就优先使用，否则全部由选定的服务商发送
 		if (!allInternal) {
+			const sendForm = {
+				from: `${name} <${accountRow.email}>`,
+				to: [...receiveEmail],
+				subject: subject,
+				text: text,
+				html: html,
+				attachments: [...imageDataList, ...attachments]
+			};
 
-			if (useCloudflareEmail) {
-				sendResult = await this.sendByCloudflareEmail(c, {
-					name,
-					accountEmail: accountRow.email,
-					receiveEmail,
-					subject,
-					text,
-					html,
-					attachments: [...imageDataList, ...attachments],
-					sendType,
-					messageId: emailRow.messageId
-				});
-			} else {
-				sendResult = await this.sendByResend(resendToken, {
-					name,
-					accountEmail: accountRow.email,
-					receiveEmail,
-					subject,
-					text,
-					html,
-					attachments: [...imageDataList, ...attachments],
-					sendType,
-					messageId: emailRow.messageId
-				});
+			if (sendType === 'reply') {
+				sendForm.headers = {
+					'in-reply-to': emailRow.messageId,
+					'references': emailRow.messageId
+				};
 			}
-
+			
+			if (useCloudflareEmail) {
+			        sendResult = await this.sendByCloudflareEmail(c, sendForm);
+			        emailProviderId = sendResult.data?.id;
+			} else if (provider === 'brevo') {
+				sendResult = await brevoService.sendEmail(c, brevoToken, sendForm);
+				emailProviderId = sendResult.data?.messageId;
+			} else {
+				sendResult = await resendService.sendEmail(c, resendToken, sendForm);
+				emailProviderId = sendResult.data?.id;
+			}
 		}
 
 		const { data, error } = sendResult;
-
 
 		if (error) {
 			throw new BizError(error.message);
@@ -314,7 +327,9 @@ const emailService = {
 		emailData.status = useCloudflareEmail ? emailConst.status.DELIVERED : emailConst.status.SENT;
 		emailData.type = emailConst.type.SEND;
 		emailData.userId = userId;
-		emailData.resendEmailId = data?.id;
+		emailData.emailProvider = provider;
+		emailData.resendEmailId = provider === 'resend' ? emailProviderId : null;
+		emailData.brevoEmailId = provider === 'brevo' ? emailProviderId : null;
 
 		const recipient = [];
 
@@ -372,65 +387,47 @@ const emailService = {
 			await c.env.kv.put(kvConst.SEND_DAY_COUNT + dateStr, JSON.stringify(daySendTotal), { expirationTtl: 60 * 60 * 24 });
 		}
 
+		// 发送邮件后推送飞书通知
+		try {
+			await feishuService.sendEmailNotifyFeishu(c, emailResult, recipient);
+		} catch (e) {
+			console.error('[Feishu] 发送邮件推送失败:', e);
+		}
+
 		return [ emailResult ];
 	},
 
-	async sendByCloudflareEmail(c, params) {
-		const sendForm = {
-			from: { email: params.accountEmail, name: params.name },
-			to: [...params.receiveEmail],
-			subject: params.subject
-		};
+	async sendByCloudflareEmail(c, sendForm) {
+    		const cloudflareSendForm = {
+        		from: sendForm.from,
+        		to: sendForm.to,
+        		subject: sendForm.subject
+    		};
 
-		if (params.text) {
-			sendForm.text = params.text;
-		}
+    		if (sendForm.text) {
+        		cloudflareSendForm.text = sendForm.text;
+    		}
 
-		if (params.html) {
-			sendForm.html = params.html;
-		}
+    		if (sendForm.html) {
+        		cloudflareSendForm.html = sendForm.html;
+    		}
 
-		const attachments = await this.toCloudflareAttachments(params.attachments);
-		if (attachments.length > 0) {
-			sendForm.attachments = attachments;
-		}
+    		const attachments = await this.toCloudflareAttachments(sendForm.attachments || []);
+    		if (attachments.length > 0) {
+        		cloudflareSendForm.attachments = attachments;
+    		}
 
-		if (params.sendType === 'reply' && params.messageId) {
-			sendForm.headers = {
-				'in-reply-to': params.messageId,
-				'references': params.messageId
-			};
-		}
+    		if (sendForm.headers) {
+        		cloudflareSendForm.headers = sendForm.headers;
+    		}
 
-		const result = await c.env.email.send(sendForm);
+    		const result = await c.env.email.send(cloudflareSendForm);
 
-		return {
-			data: {
-				id: result.messageId
-			}
-		};
-	},
-
-	async sendByResend(resendToken, params) {
-		const resend = new Resend(resendToken);
-
-		const sendForm = {
-			from: `${params.name} <${params.accountEmail}>`,
-			to: [...params.receiveEmail],
-			subject: params.subject,
-			text: params.text,
-			html: params.html,
-			attachments: await this.toResendAttachments(params.attachments)
-		};
-
-		if (params.sendType === 'reply') {
-			sendForm.headers = {
-				'in-reply-to': params.messageId,
-				'references': params.messageId
-			};
-		}
-
-		return await resend.emails.send(sendForm);
+    		return {
+        		data: {
+            		id: result.messageId
+        		}
+    		};
 	},
 
 	async toCloudflareAttachments(attachments) {
@@ -450,6 +447,46 @@ const emailService = {
 
 			return item;
 		});
+	},
+
+	async toArrayBufferAttachments(attachments = []) {
+		const result = [];
+
+		for (const attachment of attachments) {
+			const content = await this.toAttachmentArrayBuffer(attachment);
+			if (!content) {
+				continue;
+			}
+
+			result.push({ ...attachment, content });
+		}
+
+		return result;
+	},
+
+	async toAttachmentArrayBuffer(attachment) {
+		let content = attachment.content;
+
+		if (!content) {
+			return null;
+		}
+
+		if (content instanceof ArrayBuffer) {
+			return content;
+		}
+
+		if (content instanceof Uint8Array) {
+			return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
+		}
+
+		if (typeof content === 'string') {
+			if (content.startsWith('data:')) {
+				content = content.split(',')[1] || content;
+			}
+			return fileUtils.base64ToUint8Array(content.replace(/\s+/g, '')).buffer;
+		}
+
+		return content;
 	},
 
 	async toResendAttachments(attachments = []) {
@@ -636,7 +673,6 @@ const emailService = {
 
 		const bouncedEmail = emailDataList.find(emailRow => emailRow.status === emailConst.status.BOUNCED);
 
-
 		let status = emailConst.status.DELIVERED;
 		let message = ''
 		//如果有拒收邮件，就把发件人的邮件改成拒收
@@ -750,6 +786,10 @@ const emailService = {
 			status: status,
 			message: message
 		}).where(eq(email.resendEmailId, resendEmailId)).returning().get();
+	},
+
+	updateEmailStatusByBrevo(c, params) {
+		return brevoService.updateEmailStatusByBrevo(c, params);
 	},
 
 	async selectUserEmailCountList(c, userIds, type, del = isDel.NORMAL) {
@@ -901,6 +941,394 @@ const emailService = {
 		return list;
 	},
 
+	publicInboxEmail(emailAddress) {
+		const address = (emailAddress || '').trim().toLowerCase();
+
+		if (!verifyUtils.isEmail(address)) {
+			throw new BizError(t('notEmail'));
+		}
+
+		return address;
+	},
+
+	publicInboxBlockRules(setting) {
+		return (setting.anonymousReceiveBlacklist || '')
+			.split(',')
+			.map(item => item.trim().toLowerCase())
+			.filter(Boolean);
+	},
+
+	publicInboxDomains(value) {
+		return Array.from(new Set(
+			(Array.isArray(value) ? value : String(value || '').split(','))
+				.map(item => String(item || '').trim().toLowerCase())
+				.map(item => item.startsWith('@') ? item.slice(1) : item)
+				.filter(Boolean)
+		));
+	},
+
+	publicInboxAllowedDomains(setting) {
+		const availableDomains = this.publicInboxDomains(setting.domainList || []);
+		const selectedDomains = this.publicInboxDomains(setting.anonymousReceiveDomains || '');
+		const domains = selectedDomains.length ? selectedDomains : availableDomains;
+
+		if (!availableDomains.length) {
+			return domains;
+		}
+
+		return domains.filter(domain => availableDomains.includes(domain));
+	},
+
+	publicInboxDomainAllowed(setting, address) {
+		const domains = this.publicInboxAllowedDomains(setting);
+		return domains.includes(emailUtils.getDomain(address).toLowerCase());
+	},
+
+	publicInboxWildcardToRegExp(rule) {
+		return new RegExp('^' + rule
+			.replace(/[|\\{}()[\]^$+.,]/g, '\\$&')
+			.replace(/\*/g, '.*')
+			.replace(/\?/g, '.') + '$', 'i');
+	},
+
+	publicInboxRuleMatches(address, rule) {
+		if (!rule.includes('*') && !rule.includes('?')) {
+			return address === rule;
+		}
+		return this.publicInboxWildcardToRegExp(rule).test(address);
+	},
+
+	publicInboxSqlLikePattern(rule) {
+		return rule
+			.replace(/\\/g, '\\\\')
+			.replace(/%/g, '\\%')
+			.replace(/_/g, '\\_')
+			.replace(/\*/g, '%')
+			.replace(/\?/g, '_');
+	},
+
+	async publicInboxAccess(c, address) {
+		const setting = await settingService.query(c);
+
+		if (Number(setting.anonymousReceive) !== settingConst.anonymousReceive.OPEN) {
+			throw new BizError(t('anonymousReceiveClosed'), 403);
+		}
+
+		if (!this.publicInboxDomainAllowed(setting, address)) {
+			return { limit: 0, blocked: true };
+		}
+
+		if (this.publicInboxBlockRules(setting).some(rule => this.publicInboxRuleMatches(address, rule))) {
+			return { limit: 0, blocked: true };
+		}
+
+		const allowRegisteredUser = Number(setting.anonymousReceiveRegisteredUser) === settingConst.anonymousReceive.OPEN;
+
+		let limit = Number(setting.anonymousReceiveCount);
+		if (limit === -1) {
+			limit = -1;
+		} else {
+			if (Number.isNaN(limit)) {
+				limit = 10;
+			}
+
+			if (limit < 0) {
+				limit = -1;
+			}
+			if (limit > 50) {
+				limit = 50;
+			}
+		}
+
+		let days = Number(setting.anonymousReceiveDays);
+		if (Number.isNaN(days) || days < 0) {
+			days = 0;
+		}
+		if (days > 365) {
+			days = 365;
+		}
+
+		return { limit, days, allowRegisteredUser };
+	},
+
+	publicInboxScopeWhere(address, access = {}) {
+		const conditions = [this.publicInboxWhere(address, access)];
+		if (access.days > 0) {
+			const cutoffTime = dayjs().subtract(access.days, 'day').format('YYYY-MM-DD HH:mm:ss');
+			conditions.push(gte(email.createTime, cutoffTime));
+		}
+		return and(...conditions);
+	},
+
+	publicInboxWhere(address, access = {}) {
+		const baseConditions = [
+			sql`${email.toEmail} COLLATE NOCASE = ${address}`,
+			eq(email.type, emailConst.type.RECEIVE),
+			eq(email.isDel, isDel.NORMAL),
+			ne(email.status, emailConst.status.SAVING)
+		];
+
+		if (access.allowRegisteredUser === false) {
+			return and(...baseConditions, eq(email.accountId, 0));
+		}
+
+		return and(
+			...baseConditions,
+			or(
+				eq(email.accountId, 0),
+				and(
+					sql`${account.email} COLLATE NOCASE = ${address}`,
+					eq(account.isDel, isDel.NORMAL)
+				)
+			)
+		);
+	},
+
+	async publicInboxScope(c, address) {
+		const { limit, days, blocked = false, allowRegisteredUser = true } = await this.publicInboxAccess(c, address);
+		const access = { allowRegisteredUser, days };
+		const where = this.publicInboxScopeWhere(address, access);
+
+		if (blocked || limit === 0) {
+			return {
+				limit,
+				days,
+				blocked,
+				allowRegisteredUser,
+				where,
+				cutoffEmailId: 0,
+				total: 0
+			};
+		}
+
+		if (limit === -1) {
+			const totalRow = await orm(c).select({ total: count() }).from(email)
+				.leftJoin(account, eq(account.accountId, email.accountId))
+				.where(where)
+				.get();
+
+			return {
+				limit,
+				days,
+				allowRegisteredUser,
+				where,
+				cutoffEmailId: 0,
+				total: totalRow.total
+			};
+		}
+
+		const latestList = await orm(c).select({
+			emailId: email.emailId
+		}).from(email)
+			.leftJoin(account, eq(account.accountId, email.accountId))
+			.where(where)
+			.orderBy(desc(email.emailId))
+			.limit(limit)
+			.all();
+
+		if (latestList.length === 0) {
+			return {
+				limit,
+				days,
+				allowRegisteredUser,
+				where,
+				cutoffEmailId: 0,
+				total: 0
+			};
+		}
+
+		const cutoffEmailId = latestList.at(-1).emailId;
+		const totalRow = await orm(c).select({ total: count() }).from(email)
+			.leftJoin(account, eq(account.accountId, email.accountId))
+			.where(and(where, gte(email.emailId, cutoffEmailId)))
+			.get();
+
+		return {
+			limit,
+			days,
+			allowRegisteredUser,
+			where,
+			cutoffEmailId,
+			total: totalRow.total
+		};
+	},
+
+	async publicInboxList(c, params) {
+		let { address, emailId, timeSort, size } = params;
+		address = this.publicInboxEmail(address);
+		const scope = await this.publicInboxScope(c, address);
+
+		if (scope.blocked || scope.limit === 0) {
+			return {
+				list: [],
+				total: 0,
+				latestEmail: { emailId: 0 }
+			};
+		}
+
+		const maxSize = scope.limit > 0 ? scope.limit : 50;
+		size = Number(size);
+		if (!size || size < 1) {
+			size = maxSize;
+		}
+		if (size > maxSize) {
+			size = maxSize;
+		}
+		emailId = Number(emailId);
+		timeSort = Number(timeSort);
+
+		if (!emailId) {
+			emailId = timeSort ? 0 : 9999999999;
+		}
+
+		const conditions = and(
+			scope.where,
+			gte(email.emailId, scope.cutoffEmailId || 0),
+			timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId)
+		);
+
+		const query = orm(c).select({
+			emailId: email.emailId,
+			sendEmail: email.sendEmail,
+			name: email.name,
+			subject: email.subject,
+			code: email.code,
+			text: email.text,
+			toEmail: email.toEmail,
+			toName: email.toName,
+			recipient: email.recipient,
+			type: email.type,
+			status: email.status,
+			unread: email.unread,
+			createTime: email.createTime,
+			isDel: email.isDel
+		}).from(email).leftJoin(account, eq(account.accountId, email.accountId)).where(conditions);
+
+		if (timeSort) {
+			query.orderBy(asc(email.emailId));
+		} else {
+			query.orderBy(desc(email.emailId));
+		}
+
+		const list = await query.limit(size).all();
+		const latestEmail = await orm(c).select({
+			emailId: email.emailId
+		}).from(email)
+			.leftJoin(account, eq(account.accountId, email.accountId))
+			.where(and(scope.where, gte(email.emailId, scope.cutoffEmailId || 0)))
+			.orderBy(desc(email.emailId)).limit(1).get();
+
+		await this.emailAddAtt(c, list);
+
+		return {
+			list,
+			total: scope.total,
+			latestEmail: latestEmail || { emailId: 0 }
+		};
+	},
+
+	async publicInboxLatest(c, params) {
+		const address = this.publicInboxEmail(params.address);
+		const scope = await this.publicInboxScope(c, address);
+		const emailId = Number(params.emailId) || 0;
+
+		if (scope.blocked || scope.limit === 0) {
+			return [];
+		}
+
+		const query = orm(c).select({
+			emailId: email.emailId,
+			sendEmail: email.sendEmail,
+			name: email.name,
+			subject: email.subject,
+			code: email.code,
+			text: email.text,
+			toEmail: email.toEmail,
+			toName: email.toName,
+			recipient: email.recipient,
+			type: email.type,
+			status: email.status,
+			unread: email.unread,
+			createTime: email.createTime,
+			isDel: email.isDel
+		}).from(email)
+			.leftJoin(account, eq(account.accountId, email.accountId))
+			.where(and(scope.where, gte(email.emailId, scope.cutoffEmailId || 0), gt(email.emailId, emailId)))
+			.orderBy(desc(email.emailId));
+
+		const list = await (scope.limit > 0 ? query.limit(scope.limit) : query).all();
+
+		await this.emailAddAtt(c, list);
+
+		return list;
+	},
+
+	async publicInboxRandom(c) {
+		const setting = await settingService.query(c);
+
+		if (Number(setting.anonymousReceive) !== settingConst.anonymousReceive.OPEN) {
+			throw new BizError(t('anonymousReceiveClosed'), 403);
+		}
+
+		if (Number(setting.anonymousReceiveRegisteredUser) !== settingConst.anonymousReceive.OPEN) {
+			return { address: '' };
+		}
+
+		const conditions = [eq(account.isDel, isDel.NORMAL)];
+		const domains = this.publicInboxAllowedDomains(setting);
+		if (domains.length) {
+			conditions.push(or(...domains.map(domain => sql`${account.email} COLLATE NOCASE LIKE ${`%@${domain}`}`)));
+		}
+		for (const rule of this.publicInboxBlockRules(setting)) {
+			if (rule.includes('*') || rule.includes('?')) {
+				conditions.push(sql`${account.email} COLLATE NOCASE NOT LIKE ${this.publicInboxSqlLikePattern(rule)} ESCAPE '\\'`);
+			} else {
+				conditions.push(sql`${account.email} COLLATE NOCASE != ${rule}`);
+			}
+		}
+
+		const row = await orm(c).select({
+			address: account.email
+		}).from(account)
+			.where(and(...conditions))
+			.orderBy(sql`RANDOM()`)
+			.limit(1)
+			.get();
+
+		return {
+			address: row?.address || ''
+		};
+	},
+
+	async publicInboxDetail(c, params) {
+		const address = this.publicInboxEmail(params.address);
+		const scope = await this.publicInboxScope(c, address);
+		const emailId = Number(params.emailId);
+
+		if (scope.blocked || scope.limit === 0) {
+			return null;
+		}
+
+		if (!emailId) {
+			throw new BizError(t('notExistEmailReply'));
+		}
+
+		const emailRow = await orm(c).select({
+			...email
+		}).from(email)
+			.leftJoin(account, eq(account.accountId, email.accountId))
+			.where(and(scope.where, gte(email.emailId, scope.cutoffEmailId || 0), eq(email.emailId, emailId)))
+			.get();
+
+		if (!emailRow) {
+			throw new BizError(t('notExistEmailReply'), 404);
+		}
+
+		await this.emailAddAtt(c, [emailRow]);
+
+		return emailRow;
+	},
+
 	async emailAddAtt(c, list) {
 
 		const emailIds = list.map(item => item.emailId);
@@ -930,6 +1358,26 @@ const emailService = {
 	async completeReceiveAll(c) {
 		await c.env.db.prepare(`UPDATE email as e SET status = ${emailConst.status.RECEIVE} WHERE status = ${emailConst.status.SAVING} AND EXISTS (SELECT 1 FROM account WHERE account_id = e.account_id)`).run();
 		await c.env.db.prepare(`UPDATE email as e SET status = ${emailConst.status.NOONE} WHERE status = ${emailConst.status.SAVING} AND NOT EXISTS (SELECT 1 FROM account WHERE account_id = e.account_id)`).run();
+	},
+
+	async autoDeleteEmails(c) {
+		// 获取所有用户的邮件自动删除设置
+		const users = await c.env.db.prepare(
+			'SELECT user_id, email_auto_delete_days FROM user WHERE email_auto_delete_days > 0'
+		).all();
+
+		for (const user of users.results) {
+			const { user_id: userId, email_auto_delete_days: days } = user;
+			
+			// 删除超过设置天数且未星标的邮件
+			await c.env.db.prepare(
+				`DELETE FROM email 
+				 WHERE user_id = ? 
+				 AND create_time < DATETIME('now', ? || ' days') 
+				 AND email_id NOT IN (SELECT email_id FROM star WHERE user_id = ?)
+				 AND is_del = 0`
+			).bind(userId, -days, userId).run();
+		}
 	},
 
 	async batchDelete(c, params) {

@@ -29,31 +29,105 @@ const dbInit = {
 		await this.v2_8DB(c);
 		await this.v2_9DB(c);
 		await this.v3_0DB(c);
+		await this.v3_1DB(c);
+		await this.v3_2DB(c);
+		await this.v3_3DB(c);
+		await this.v3_4DB(c);
+		await this.v3_5DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
 	},
 
-	async v3_0DB(c) {
+	async v3_5DB(c) {
 		try {
 			await c.env.db.batch([
-				await c.env.db.prepare(`ALTER TABLE email ADD COLUMN code TEXT NOT NULL DEFAULT '';`),
-				await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN ai_code INTEGER NOT NULL DEFAULT 1;`),
-				await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN ai_code_filter TEXT NOT NULL DEFAULT '';`)
+				c.env.db.prepare(`
+					CREATE INDEX IF NOT EXISTS idx_email_public_inbox_lookup
+					ON email(to_email COLLATE NOCASE, type, is_del, email_id DESC)
+				`),
+				c.env.db.prepare(`
+					CREATE INDEX IF NOT EXISTS idx_email_public_inbox_time
+					ON email(to_email COLLATE NOCASE, type, is_del, create_time, email_id DESC)
+				`)
+			]);
+		} catch (e) {
+			console.warn(`跳过公开收件箱索引创建：${e.message}`);
+		}
+	},
+
+	async v3_2DB(c) {
+		try {
+			await c.env.db.batch([
+				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN anonymous_receive_registered_user INTEGER NOT NULL DEFAULT 0;`),
+				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN anonymous_receive_domains TEXT NOT NULL DEFAULT '';`)
 			]);
 		} catch (e) {
 			console.warn(`跳过字段：${e.message}`);
 		}
 
 		try {
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN anonymous_receive_refresh INTEGER NOT NULL DEFAULT 10;`).run();
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
+
+		try {
 			await c.env.db.batch([
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN black_subject TEXT NOT NULL DEFAULT '';`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN black_content TEXT NOT NULL DEFAULT '';`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN black_from TEXT NOT NULL DEFAULT '';`)
+				c.env.db.prepare(`UPDATE setting SET anonymous_receive_registered_user = 0 WHERE anonymous_receive_registered_user IS NULL;`),
+				c.env.db.prepare(`UPDATE setting SET anonymous_receive_domains = '' WHERE anonymous_receive_domains IS NULL;`)
 			]);
 		} catch (e) {
 			console.warn(`跳过字段：${e.message}`);
 		}
 
+		try {
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN email_provider TEXT NOT NULL DEFAULT '';`).run();  
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
+	},
+
+	async v3_3DB(c) {
+		try {
+			await c.env.db.batch([
+				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN anonymous_receive INTEGER NOT NULL DEFAULT 0;`),
+				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN anonymous_receive_count INTEGER NOT NULL DEFAULT 10;`),
+				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN anonymous_receive_blacklist TEXT NOT NULL DEFAULT '';`)
+			]);
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
+
+		try {
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN anonymous_receive_refresh INTEGER NOT NULL DEFAULT 10;`).run();
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
+
+		try {
+			await c.env.db.batch([
+				c.env.db.prepare(`UPDATE setting SET anonymous_receive = 0 WHERE anonymous_receive IS NULL;`),
+				c.env.db.prepare(`UPDATE setting SET anonymous_receive_count = 10 WHERE anonymous_receive_count IS NULL;`),
+				c.env.db.prepare(`UPDATE setting SET anonymous_receive_refresh = 10 WHERE anonymous_receive_refresh IS NULL;`),
+				c.env.db.prepare(`UPDATE setting SET anonymous_receive_blacklist = '' WHERE anonymous_receive_blacklist IS NULL;`)
+			]);
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
+	},
+
+	async v3_4DB(c) {
+		try {
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN anonymous_receive_days INTEGER NOT NULL DEFAULT 0;`).run();
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
+
+		try {
+			await c.env.db.prepare(`UPDATE setting SET anonymous_receive_days = 0 WHERE anonymous_receive_days IS NULL;`).run();
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
 	},
 
 	async v2_9DB(c) {
@@ -62,6 +136,67 @@ const dbInit = {
 		} catch (e) {
 			console.warn(`跳过字段：${e.message}`);
 		}
+	},
+
+	async v3_0DB(c) {
+		// 添加 Brevo 黑名单和飞书相关字段
+		const ADD_COLUMN_SQL_LIST = [
+			`ALTER TABLE setting ADD COLUMN black_subject TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN black_content TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN black_from TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE email ADD COLUMN code TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN ai_code INTEGER NOT NULL DEFAULT 1;`,
+			`ALTER TABLE setting ADD COLUMN ai_code_filter TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN brevo_tokens TEXT NOT NULL DEFAULT '{}';`,			
+			`ALTER TABLE setting ADD COLUMN feishu_app_id TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN feishu_app_secret TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN feishu_bot_status INTEGER NOT NULL DEFAULT 1;`,
+			`ALTER TABLE setting ADD COLUMN feishu_chat_id TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN feishu_header_template TEXT NOT NULL DEFAULT 'blue';`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_sender INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_recipient INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_time INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_view_button INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_custom_domain TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN feishu_failure_notice INTEGER NOT NULL DEFAULT 1;`,
+			`ALTER TABLE setting ADD COLUMN feishu_open_id TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN feishu_receive_type INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE email ADD COLUMN brevo_email_id TEXT;`,
+			`ALTER TABLE email ADD COLUMN email_provider TEXT NOT NULL DEFAULT 'resend';`
+		];
+
+		const promises = ADD_COLUMN_SQL_LIST.map(async (sql) => {
+			try {
+				await c.env.db.prepare(sql).run();
+			} catch (e) {
+				console.warn(`跳过字段添加：${e.message}`);
+			}
+		});
+
+		await Promise.all(promises);
+	},
+
+	async v3_1DB(c) {
+		// 添加飞书增强配置字段
+		const ADD_COLUMN_SQL_LIST = [
+			`ALTER TABLE setting ADD COLUMN feishu_header_template TEXT NOT NULL DEFAULT 'blue';`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_sender INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_recipient INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_time INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_show_view_button INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN feishu_custom_domain TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN feishu_failure_notice INTEGER NOT NULL DEFAULT 1;`
+		];
+
+		const promises = ADD_COLUMN_SQL_LIST.map(async (sql) => {
+			try {
+				await c.env.db.prepare(sql).run();
+			} catch (e) {
+				console.warn(`跳过字段添加：${e.message}`);
+			}
+		});
+
+		await Promise.all(promises);
 	},
 
 	async v2_8DB(c) {
@@ -137,6 +272,12 @@ const dbInit = {
 		} catch (e) {
 			console.warn(`跳过字段：${e.message}`);
 		}
+		
+		try {
+    			await c.env.db.prepare(`ALTER TABLE oauth ADD COLUMN platform INTEGER NOT NULL DEFAULT 0;`).run();
+		} catch (e) {
+    			console.warn(`跳过字段：${e.message}`);
+		}		
 
 	},
 
@@ -487,7 +628,7 @@ const dbInit = {
         INSERT INTO role (
           role_id, name, key, create_time, sort, description, user_id, is_default, send_count, send_type, account_count
         ) VALUES (
-          1, '普通用户', NULL, '0000-00-00 00:00:00', 0, '只有普通使用权限', 0, 1, NULL, 'ban', 10
+          1, 'defaultUser', NULL, '0000-00-00 00:00:00', 0, 'defaultDesc', 0, 1, NULL, 'ban', 10
         )
       `).run();
 		}
@@ -596,6 +737,13 @@ const dbInit = {
 			many_email INTEGER NOT NULL,
 			title TEXT NOT NULL,
 			auto_refresh INTEGER NOT NULL,
+			anonymous_receive INTEGER NOT NULL,
+			anonymous_receive_count INTEGER NOT NULL,
+			anonymous_receive_days INTEGER NOT NULL DEFAULT 0,
+			anonymous_receive_refresh INTEGER NOT NULL,
+			anonymous_receive_blacklist TEXT NOT NULL,
+			anonymous_receive_registered_user INTEGER NOT NULL DEFAULT 0,
+			anonymous_receive_domains TEXT NOT NULL DEFAULT '',
 			register_verify INTEGER NOT NULL,
 			add_email_verify INTEGER NOT NULL
 		  )
@@ -604,9 +752,9 @@ const dbInit = {
 		try {
 			await c.env.db.prepare(`
 			  INSERT INTO setting (
-				register, receive, add_email, many_email, title, auto_refresh, register_verify, add_email_verify
+				register, receive, add_email, many_email, title, auto_refresh, anonymous_receive, anonymous_receive_count, anonymous_receive_days, anonymous_receive_refresh, anonymous_receive_blacklist, anonymous_receive_registered_user, anonymous_receive_domains, register_verify, add_email_verify
 			  )
-			  SELECT 0, 0, 0, 0, 'Cloud Mail', 0, 1, 1
+			  SELECT 0, 0, 0, 0, 'Cloud Mail', 0, 0, 10, 0, 10, '', 0, '', 1, 1
 			  WHERE NOT EXISTS (SELECT 1 FROM setting)
 			`).run();
 		} catch (e) {
