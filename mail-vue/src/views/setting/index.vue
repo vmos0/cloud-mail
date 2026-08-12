@@ -157,10 +157,10 @@ const setEmailAutoDeleteLoading = ref(false)
 const oauthProviders = computed(() => {
   const allProviders = [
     {
-      key: 'linuxdo',
-      label: 'LinuxDo',
-      icon: '/image/linuxdo.webp',
-      iconType: 'image'
+      key: 'gitlab',
+      label: 'GitLab',
+      icon: 'mingcute:gitlab-fill',
+      iconType: 'iconify'
     },
     {
       key: 'github',
@@ -169,16 +169,16 @@ const oauthProviders = computed(() => {
       iconType: 'iconify'
     },
     {
-      key: 'gitlab',
-      label: 'GitLab',
-      icon: 'mingcute:gitlab-fill',
-      iconType: 'iconify'
-    },
-    {
       key: 'google',
       label: 'Google',
       icon: 'mingcute:google-fill',
       iconType: 'iconify'
+    },
+    {
+      key: 'linuxdo',
+      label: 'LinuxDo',
+      icon: '/image/linuxdo.webp',
+      iconType: 'image'
     }
   ]
 
