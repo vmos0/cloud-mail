@@ -94,19 +94,11 @@ jobs:
           if [ -z "$CUSTOM_DOMAIN" ]; then
             echo "::warning:: CUSTOM_DOMAIN variable is not set."
           fi
-          
+
           CONFIG_FILE="wrangler-action.toml"
           
           if [ -z "$R2_BUCKET_NAME" ]; then
             sed -i '/\[\[r2_buckets\]\]/,/^$/d' "$CONFIG_FILE"
-          fi
-
-          if [ -z "$LINUXDO_CLIENT_ID" ] || [ -z "$LINUXDO_CLIENT_SECRET" ]; then
-            sed -i '/^linuxdo_client_id = /,/^linuxdo_switch = /d' "$CONFIG_FILE"
-          fi
-
-          if [ -z "$GH_CLIENT_ID" ] || [ -z "$GH_CLIENT_SECRET" ]; then
-            sed -i '/^gh_client_id = /,/^gh_switch = /d' "$CONFIG_FILE"
           fi
           
           if [ -z "$CUSTOM_DOMAIN" ]; then
@@ -127,16 +119,12 @@ jobs:
           sed -i "s|\${ADMIN}|${ADMIN}|g" "$CONFIG_FILE"
           sed -i "s|\${JWT_SECRET}|${JWT_SECRET}|g" "$CONFIG_FILE"
           sed -i "s|\${R2_BUCKET_NAME}|${R2_BUCKET_NAME}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_CLIENT_ID}|${LINUXDO_CLIENT_ID}|g" "$CONFIG_FILE"
           sed -i "s|\${ANALYSIS_CACHE}|${ANALYSIS_CACHE}|g" "$CONFIG_FILE"
-          sed -i "s|\${AI_MODEL}|${AI_MODEL}|g" "$CONFIG_FILE"          
-          sed -i "s|\${LINUXDO_CLIENT_SECRET}|${LINUXDO_CLIENT_SECRET}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_CALLBACK_URL}|${LINUXDO_CALLBACK_URL}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_SWITCH}|${LINUXDO_SWITCH}|g" "$CONFIG_FILE"          
-          sed -i "s|\${GH_CLIENT_ID}|${GH_CLIENT_ID}|g" "$CONFIG_FILE"
-          sed -i "s|\${GH_CLIENT_SECRET}|${GH_CLIENT_SECRET}|g" "$CONFIG_FILE"
-          sed -i "s|\${GH_CALLBACK_URL}|${GH_CALLBACK_URL}|g" "$CONFIG_FILE"
-          sed -i "s|\${GH_SWITCH}|${GH_SWITCH}|g" "$CONFIG_FILE"
+          sed -i "s|\${AI_MODEL}|${AI_MODEL}|g" "$CONFIG_FILE"
+          sed -i "s|\${LINUXDO_SWITCH}|${LINUXDO_SWITCH}|g" "$CONFIG_FILE"
+          sed -i "s|\${GITHUB_SWITCH}|${GITHUB_SWITCH}|g" "$CONFIG_FILE"
+          sed -i "s|\${GITLAB_SWITCH}|${GITLAB_SWITCH}|g" "$CONFIG_FILE"
+          sed -i "s|\${GOOGLE_SWITCH}|${GOOGLE_SWITCH}|g" "$CONFIG_FILE"
           
           echo "✅ Environment setup completed."
 
