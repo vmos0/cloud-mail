@@ -68,7 +68,7 @@
           </template>
         </el-input>
         <el-select v-model="addForm.roleId" :placeholder="$t('roleDesc')">
-          <el-option v-for="item in roleList" :label="item.name" :value="item.roleId" :key="item.roleId"/>
+          <el-option v-for="item in roleList" :label="$t(item.name)" :value="item.roleId" :key="item.roleId"/>
         </el-select>
         <el-date-picker
             v-model="addForm.expireTime"

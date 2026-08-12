@@ -25,3 +25,12 @@ mail-vue/node_modules
 mail-vue/dist
 .wrangler
 .venv
+
+# Local Cloudflare configs with real resource ids or secrets
+mail-worker/wrangler-dev.toml
+mail-worker/wrangler-test.toml
+
+# Local browser verification artifacts
+.playwright-mcp/
+public-inbox-dialog.png
+public-inbox-requests.txt

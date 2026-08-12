@@ -70,6 +70,10 @@
 
 - **🤖 人机验证**：集成Turnstile人机验证，防止人机批量注册
 
+- **🔑 OAuth2 登录**：支持 LinuxDo / GitHub / GitLab / Google 第三方登录
+
+- **✉️ 子地址（Plus Addressing）**：支持 `user+tag@domain.com` 格式的子地址，未注册子地址自动回退到主地址收件，创建子地址需主地址权限
+
 - **📜 更多功能**：正在开发中...
 
 

@@ -29,13 +29,84 @@
           <el-button type="primary" @click="pwdShow = true">{{$t('changePwdBtn')}}</el-button>
         </div>
       </div>
+      <div class="item">
+        <div>{{$t('emailAutoDelete')}}</div>
+        <div>
+          <el-tooltip effect="dark" :content="$t('emailAutoDeleteDesc')">
+            <el-input-number
+              v-model="emailAutoDeleteDays"
+              @change="handleSetEmailAutoDeleteDays"
+              :min="0"
+              :max="30"
+              :precision="0"
+              style="width: 150px"
+            >
+              <template #suffix>
+                <span>{{ $t('dayUnit') }}</span>
+              </template>
+            </el-input-number>
+          </el-tooltip>
+        </div>
+      </div>
+<div
+  class="item"
+  v-for="p in oauthProviders"
+  :key="p.key"
+>
+  <div>{{ $t('oauthBinding', { provider: p.label }) }}</div>
+
+  <div>
+    <div
+      v-if="userStore.user.oauthProviders?.some(item => item.provider === p.key)"
+      class="oauth-info"
+      @click="showUnbindConfirm(p)"
+    >
+      <el-avatar
+        :src="userStore.user.oauthProviders.find(item => item.provider === p.key)?.avatar"
+        :size="30"
+        style="margin-right: 10px"
+      />
+
+      <span class="oauth-username">
+        {{ userStore.user.oauthProviders.find(item => item.provider === p.key)?.username }}
+      </span>
+
+      <el-icon class="unbind-icon">
+        <Icon icon="mingcute:delete-fill" width="16" height="16" />
+      </el-icon>
+    </div>
+
+    <el-button
+      v-else
+      type="primary"
+      @click="bindOauth(p)"
+    >
+      <el-avatar
+        v-if="p.iconType === 'image'"
+        :src="p.icon"
+        :size="18"
+        style="margin-right: 10px"
+      />
+
+      <Icon
+        v-else
+        :icon="p.icon"
+        width="18"
+        height="18"
+        style="margin-right: 10px"
+      />
+
+      {{ $t('bindOauth', { provider: p.label }) }}
+    </el-button>
+  </div>
+</div>
     </div>
     <div class="language">
       <div class="title">{{$t('language')}}</div>
       <el-select
           :model-value="langSelect"
           class="language-select"
-          placeholder="Select"
+          :placeholder="$t('select')"
           @change="changeLang"
       >
         <el-option label="中文" value="zh" @pointerdown.prevent.stop="changeLang('zh')"/>
@@ -61,14 +132,15 @@
   </div>
 </template>
 <script setup>
-import {reactive, ref, defineOptions} from 'vue'
-import {resetPassword, userDelete} from "@/request/my.js";
-import {useUserStore} from "@/store/user.js";
-import router from "@/router/index.js";
-import {accountSetName} from "@/request/account.js";
-import {useAccountStore} from "@/store/account.js";
+import {reactive, ref, computed, defineOptions, onMounted} from 'vue'
+import {resetPassword, userDelete, setEmailAutoDeleteDays, unbind} from "@/request/my.js"
+import {useUserStore} from "@/store/user.js"
+import router from "@/router/index.js"
+import {accountSetName} from "@/request/account.js"
+import {useAccountStore} from "@/store/account.js"
 import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
+import {Icon} from "@iconify/vue";
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
@@ -78,7 +150,56 @@ const setPwdLoading = ref(false)
 const setNameShow = ref(false)
 const accountName = ref(null)
 const langSelect = ref(settingStore.lang)
+const emailAutoDeleteDays = ref(30)
+const setEmailAutoDeleteLoading = ref(false)
 
+// OAuth Provider 配置
+const oauthProviders = computed(() => {
+  const allProviders = [
+    {
+      key: 'linuxdo',
+      label: 'LinuxDo',
+      icon: '/image/linuxdo.webp',
+      iconType: 'image'
+    },
+    {
+      key: 'github',
+      label: 'GitHub',
+      icon: 'mingcute:github-fill',
+      iconType: 'iconify'
+    },
+    {
+      key: 'gitlab',
+      label: 'GitLab',
+      icon: 'mingcute:gitlab-fill',
+      iconType: 'iconify'
+    },
+    {
+      key: 'google',
+      label: 'Google',
+      icon: 'mingcute:google-fill',
+      iconType: 'iconify'
+    }
+  ]
+
+  return allProviders.filter(
+    p => settingStore.settings[p.key + 'Switch']
+  )
+})
+
+// 显示解绑确认对话框
+const showUnbindConfirm = (provider) => {
+  ElMessageBox.confirm(
+    t('unbindOauthConfirm', { provider: provider.label }),
+    {
+      confirmButtonText: t('confirm'),
+      cancelButtonText: t('cancel'),
+      type: 'warning'
+    }
+  ).then(() => {
+    handleUnbind(provider)
+  })
+}
 defineOptions({
   name: 'setting'
 })
@@ -157,6 +278,62 @@ const deleteConfirm = () => {
   })
 }
 
+// 设置邮件自动删除天数
+const handleSetEmailAutoDeleteDays = () => {
+  setEmailAutoDeleteLoading.value = true
+  setEmailAutoDeleteDays(emailAutoDeleteDays.value).then(() => {
+
+    userStore.user.emailAutoDeleteDays = emailAutoDeleteDays.value
+
+    ElMessage({
+      message: t('saveSuccessMsg'),
+      type: 'success',
+      plain: true,
+    })
+    setEmailAutoDeleteLoading.value = false
+  }).catch(() => {
+    setEmailAutoDeleteLoading.value = false
+  })
+}
+
+// 绑定 OAuth 账号
+const bindOauth = (provider) => {
+  const clientId = settingStore.settings[provider.key + 'ClientId']
+  const redirectUri = encodeURIComponent(
+    settingStore.settings[provider.key + 'CallbackUrl']
+  )
+
+  const authorizeUrls = {
+    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email`,
+    github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email`,
+    gitlab: `https://gitlab.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=read_user`,
+    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email`,
+  }
+
+  window.location.href = authorizeUrls[provider.key]
+}
+
+// 解绑 OAuth 账号
+const handleUnbind = (provider) => {
+  unbind(provider.key).then(() => {
+    ElMessage({
+      message: t('unbindSuccessMsg'),
+      type: 'success',
+      plain: true,
+    })
+
+    userStore.user.oauthProviders =
+      (userStore.user.oauthProviders || []).filter(
+        item => item.provider !== provider.key
+      )
+  })
+}
+
+// 组件挂载时获取用户信息，包括邮件自动删除设置
+onMounted(() => {
+  // 从用户信息中获取邮件自动删除设置
+    emailAutoDeleteDays.value = userStore.user.emailAutoDeleteDays ?? 30
+})
 
 function submitPwd() {
 

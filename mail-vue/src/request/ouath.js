@@ -1,7 +1,7 @@
 import http from '@/axios/index.js';
 
-export function oauthLinuxDoLogin(code) {
-    return http.post('/oauth/linuxDo/login',{code})
+export function oauthLoginApi(provider, code) {
+    return http.post(`/oauth/${provider}/login`, {code})
 }
 
 export function oauthBindUser(form) {

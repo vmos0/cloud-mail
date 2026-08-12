@@ -29,21 +29,34 @@ const userService = {
 			throw new BizError(t('authExpired'), 401);
 		}
 
-		const [account, roleRow, permKeys] = await Promise.all([
-			accountService.selectByEmailIncludeDel(c, userRow.email),
-			roleService.selectById(c, userRow.type),
-			userRow.email === c.env.admin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId)
-		]);
+const [account, roleRow, permKeys, oauthList] = await Promise.all([
+    accountService.selectByEmailIncludeDel(c, userRow.email),
+    roleService.selectById(c, userRow.type),
+    userRow.email === c.env.admin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId),
+    // 获取用户的绑定信息
+    orm(c).select()
+        .from(oauth)
+        .where(eq(oauth.userId, userId))
+        .all()
+]);
 
 		const user = {};
 		user.userId = userRow.userId;
 		user.sendCount = userRow.sendCount;
 		user.email = userRow.email;
+		user.emailAutoDeleteDays = userRow.emailAutoDeleteDays;
 		user.account = account;
 		user.name = account.name;
 		user.permKeys = permKeys;
 		user.role = roleRow;
 		user.type = userRow.type;
+		// 添加绑定信息
+        user.oauthProviders = oauthList.map(item => ({
+          provider: item.platform,
+          username: item.username,
+          name: item.name,
+           avatar: item.avatar
+        }));
 
 		if (c.env.admin === userRow.email) {
 			user.role = constant.ADMIN_ROLE
@@ -253,6 +266,13 @@ const userService = {
 		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
 	},
 
+	async setEmailAutoDeleteDays(c, params, userId) {
+		const { emailAutoDeleteDays } = params;
+		// 限制天数范围为1-30天
+		const days = Math.max(0, Math.min(30, emailAutoDeleteDays));
+		await orm(c).update(user).set({ emailAutoDeleteDays: days }).where(eq(user.userId, userId)).run();
+	},
+
 	async setStatus(c, params) {
 
 		const { status, userId } = params;
@@ -324,7 +344,7 @@ const userService = {
 			throw new BizError(t('isRegAccount'));
 		}
 
-		const role = roleService.selectById(c, type);
+		const role = await roleService.selectById(c, type);
 
 		if (!role) {
 			throw new BizError(t('roleNotExist'));
@@ -373,6 +393,24 @@ const userService = {
 			.where(eq(user.regKeyId, regKeyId))
 			.orderBy(desc(user.userId))
 			.all();
+	},
+
+	// 根据OAuth用户ID查找关联的用户
+	async selectByOauthUserId(c, oauthUserId, platform) {
+		const result = await orm(c)
+			.select()
+			.from(user)
+			.innerJoin(oauth, eq(oauth.userId, user.userId))
+			.where(
+				and(
+					eq(oauth.oauthUserId, oauthUserId),
+					eq(oauth.platform, platform),
+					eq(user.isDel, isDel.NORMAL)
+				)
+			)
+			.get();
+
+		return result ? result.user : null;
 	}
 };
 

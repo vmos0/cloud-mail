@@ -13,7 +13,7 @@
         <span class="form-title">{{ settingStore.settings.title }}</span>
         <span class="form-desc" v-if="show === 'login'">{{ $t('loginTitle') }}</span>
         <span class="form-desc" v-else>{{ $t('regTitle') }}</span>
-        <div v-show="show === 'login'">
+        <div v-if="show === 'login'">
           <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="form.email"
                     type="text" :placeholder="$t('emailAccount')" autocomplete="off">
             <template #append v-if="!hideLoginDomain">
@@ -44,11 +44,19 @@
           <el-button class="btn" type="primary" @click="submit" :loading="loginLoading"
           >{{ $t('loginBtn') }}
           </el-button>
-          <el-button class="btn" v-if="settingStore.settings.linuxdoSwitch"  style="margin-top: 10px"  @click="linuxDoLogin">
-            <el-avatar src="/image/linuxdo.webp" :size="18" style="margin-right: 10px" />LinuxDo
+          <el-button v-for="p in oauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
+            <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" style="margin-right: 10px" />
+            <Icon v-else :icon="p.icon" width="18" height="18" style="margin-right: 10px" />
+            {{ p.label }}
           </el-button>
+          <div v-if="anonymousReceiveEnabled" class="public-inbox-link">
+            <span>{{ $t('anonymousReceiveLoginHint') }}</span>
+            <el-link type="primary" :underline="false" @click="openPublicInbox">
+              {{ $t('anonymousReceiveLoginLink') }}
+            </el-link>
+          </div>
         </div>
-        <div v-show="show !== 'login'">
+        <div v-else>
           <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="registerForm.email" type="text" :placeholder="$t('emailAccount')"
                     autocomplete="off">
             <template #append v-if="!hideLoginDomain">
@@ -94,8 +102,10 @@
           <el-button class="btn" style="margin: 0" type="primary" @click="submitRegister" :loading="registerLoading"
           >{{ $t('regBtn') }}
           </el-button>
-          <el-button v-if="settingStore.settings.linuxdoSwitch" class="btn" style="margin-top: 10px"  @click="linuxDoLogin">
-            <el-avatar src="/image/linuxdo.webp" :size="18" style="margin-right: 10px" />LinuxDo
+          <el-button v-for="p in oauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
+            <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" style="margin-right: 10px" />
+            <Icon v-else :icon="p.icon" width="18" height="18" style="margin-right: 10px" />
+            {{ p.label }}
           </el-button>
         </div>
         <template v-if="settingStore.settings.register === 0">
@@ -106,7 +116,7 @@
         </template>
       </div>
     </div>
-    <el-dialog class="bind-dialog" v-model="showBindForm"  title="注册邮箱" >
+    <el-dialog class="bind-dialog" v-model="showBindForm"  :title="$t('registerEmail')" >
       <div class="bind-container">
         <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="bindForm.email" type="text" :placeholder="$t('emailAccount')" autocomplete="off">
           <template #append v-if="!hideLoginDomain">
@@ -131,6 +141,23 @@
             </div>
           </template>
         </el-input>
+
+        <!-- 邮箱建议显示区域 -->
+        <div v-if="showEmailSuggestions && emailSuggestions.length > 0" class="email-suggestions">
+          <div class="suggestion-title">{{ $t('emailSuggestions') }}</div>
+          <div class="suggestion-list">
+            <div
+              v-for="(suggestion, index) in emailSuggestions"
+              :key="index"
+              :class="['suggestion-item', { 'recommended': index === 0 }]"
+              @click="selectEmailSuggestion(suggestion)"
+            >
+              <span class="suggestion-email">{{ suggestion }}</span>
+              <span v-if="index === 0" class="recommended-tag">{{ $t('recommended') }}</span>
+            </div>
+          </div>
+        </div>
+
         <el-input v-if="settingStore.settings.regKey === 0" v-model="bindForm.code" :placeholder="$t('regKey')"
                   type="text" autocomplete="off"/>
         <el-input v-if="settingStore.settings.regKey === 2" v-model="bindForm.code"
@@ -140,14 +167,12 @@
         </el-button>
       </div>
     </el-dialog>
-    <a v-show="settingStore.settings.projectLink" class="github" href="https://github.com/maillab/cloud-mail">
-      <Icon icon="mingcute:github-line" color="#1890ff" width="20" height="20" />
-    </a>
   </div>
 </template>
 
 <script setup>
 import router from "@/router";
+import {useRoute} from "vue-router";
 import {computed, nextTick, reactive, ref} from "vue";
 import {login} from "@/request/login.js";
 import {register} from "@/request/login.js";
@@ -162,24 +187,46 @@ import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
-import {oauthBindUser, oauthLinuxDoLogin} from "@/request/ouath.js";
+import {oauthBindUser, oauthLoginApi} from "@/request/ouath.js";
 
 const {t} = useI18n();
 const accountStore = useAccountStore();
 const userStore = useUserStore();
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
+const route = useRoute();
 const loginLoading = ref(false)
 const bindLoading = ref(false)
 const oauthLoading = ref(false);
 const showBindForm = ref(false);
 const show = ref('login')
 
+const oauthProvider = computed(() => {
+  const match = route.path.match(/^\/login\/(.+)/)
+  return match ? match[1] : null
+})
+
+const oauthProviders = computed(() => {
+  const allProviders = [
+    { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
+    { key: 'github', label: 'GitHub', icon: 'mingcute:github-fill', iconType: 'iconify' },
+    { key: 'gitlab', label: 'GitLab', icon: 'mingcute:gitlab-fill', iconType: 'iconify' },
+    { key: 'google', label: 'Google', icon: 'mingcute:google-fill', iconType: 'iconify' },
+  ]
+  return allProviders.filter(p => settingStore.settings[p.key + 'Switch'])
+})
+
 const bindForm = reactive({
   email: '',
   oauthUserId: '',
-  code: ''
+  code: '',
+  provider: ''
 })
+
+// 邮箱建议相关状态
+const emailSuggestions = ref([]);
+const showEmailSuggestions = ref(false);
+const recommendedEmail = ref('');
 
 const form = reactive({
   email: '',
@@ -238,6 +285,7 @@ const loginOpacity = computed(() => {
 })
 
 const hideLoginDomain = computed(() => settingStore.settings.loginDomain === 1)
+const anonymousReceiveEnabled = computed(() => settingStore.settings.anonymousReceive === 0)
 
 const background = computed(() => {
 
@@ -261,32 +309,64 @@ const getEmailName = (email) => {
   return email.split('@')[0]
 }
 
-function linuxDoLogin() {
-  const clientId = settingStore.settings.linuxdoClientId
-  const redirectUri = encodeURIComponent(settingStore.settings.linuxdoCallbackUrl)
-  window.location.href =
-      `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email`
+function oauthLogin(provider) {
+  const clientId = settingStore.settings[provider + 'ClientId']
+  const redirectUri = encodeURIComponent(window.location.origin + '/login/' + provider)
+  const authorizeUrls = {
+    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email`,
+    github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email`,
+    gitlab: `https://gitlab.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=read_user`,
+    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email`,
+  }
+  window.location.href = authorizeUrls[provider]
 }
 
-linuxDoGetUser();
+function openPublicInbox() {
+  router.push('/public-inbox')
+}
 
-async function linuxDoGetUser() {
+oauthGetUser();
+
+async function oauthGetUser() {
+
+  if (!oauthProvider.value) return
 
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
 
   if (code) {
-
     oauthLoading.value = true
-    oauthLinuxDoLogin(code).then(data => {
 
-      bindForm.oauthUserId = data.userInfo.oauthUserId;
+    oauthLoginApi(oauthProvider.value, code).then(data => {
 
-      if (!data.token) {
+  bindForm.oauthUserId = data.userInfo.oauthUserId;
+  bindForm.provider = oauthProvider.value;
+
+  if (!data.token) {
+        // 设置默认邮箱
+        if (data.defaultEmail) {
+          const [username, domain] = data.defaultEmail.split('@');
+          bindForm.email = username;
+          const index = domainList.findIndex(d => d === '@' + domain);
+          if (index !== -1) {
+              suffix.value = domainList[index];
+          }
+        }
+
+        // 处理邮箱建议
+        if (data.emailSuggestions && data.emailSuggestions.length > 0) {
+          emailSuggestions.value = data.emailSuggestions;
+          recommendedEmail.value = data.emailSuggestions[0];
+          showEmailSuggestions.value = true;
+        } else {
+          emailSuggestions.value = [];
+          showEmailSuggestions.value = false;
+        }
+
         showBindForm.value = true
         oauthLoading.value = false
         ElMessage({
-          message: '请注册绑定一个邮箱',
+          message: t('pleaseBindEmail'),
           type: 'warning',
           duration: 4000,
           plain: true,
@@ -295,13 +375,37 @@ async function linuxDoGetUser() {
       }
 
       saveToken(data.token);
-    }).catch(() => {
+    }).catch((error) => {
+      console.error('OAuth login failed:', error)
       oauthLoading.value = false
+      ElMessage({
+        message: t('loginFailMsg'),
+        type: 'error',
+        duration: 4000,
+        plain: true,
+      })
     })
   }
 
-  const cleanUrl = window.location.origin + window.location.pathname
-  window.history.replaceState({}, '', cleanUrl)
+  // 只有在有code参数时才清理URL，避免影响正常的页面访问
+  if (code) {
+    const cleanUrl = window.location.origin + window.location.pathname
+    window.history.replaceState({}, '', cleanUrl)
+  }
+}
+
+// 选择邮箱建议
+function selectEmailSuggestion(email) {
+  // 解析邮箱，获取用户名和域名
+  const [username, domain] = email.split('@');
+  bindForm.email = username;
+  // 设置对应的后缀
+  const domainIndex = domainList.findIndex(d => d === '@' + domain);
+  if (domainIndex !== -1) {
+    suffix.value = domainList[domainIndex];
+  }
+  // 选择后隐藏建议列表
+  showEmailSuggestions.value = false;
 }
 
 function bind() {
@@ -351,7 +455,7 @@ function bind() {
 
   }
 
-  const form = {email, oauthUserId: bindForm.oauthUserId, code: bindForm.code}
+  const form = {email, oauthUserId: bindForm.oauthUserId, code: bindForm.code, platform: bindForm.provider}
 
   bindLoading.value = true
   oauthBindUser(form).then(data => {
@@ -429,7 +533,6 @@ function refreshWebsiteConfig() {
     console.error(e)
   })
 }
-
 
 function submitRegister() {
 
@@ -550,11 +653,41 @@ function submitRegister() {
     verifyToken = ''
     settingStore.settings.regVerifyOpen = regVerifyOpen
     verifyShow.value = false
-    ElMessage({
-      message: t('regSuccessMsg'),
-      type: 'success',
-      plain: true,
-    })
+
+    // 注册成功后，询问是否绑定第三方账号
+const provider = oauthProviders.value.find(
+  p => p.key === bindForm.provider
+)
+
+if (provider) {
+  ElMessageBox.confirm(
+    t('bindOauthAfterReg', {
+      provider: provider.label
+    }),
+    t('regSuccessMsg'),
+    {
+      confirmButtonText: t('confirm'),
+      cancelButtonText: t('cancel'),
+      type: 'info'
+    }
+  ).then(() => {
+    oauthLogin(bindForm.provider)
+  }).catch(() => {
+        // 不绑定，显示成功提示
+        ElMessage({
+          message: t('regSuccessMsg'),
+          type: 'success',
+          plain: true,
+        })
+      })
+    } else {
+      // 开关未开启，直接显示成功提示
+      ElMessage({
+        message: t('regSuccessMsg'),
+        type: 'success',
+        plain: true,
+      })
+    }
   }).catch(res => {
 
     registerLoading.value = false
@@ -658,6 +791,16 @@ function submitRegister() {
     }
   }
 
+  .public-inbox-link {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+  }
+
   :deep(.el-input__wrapper) {
     border-radius: 6px;
     background: var(--el-bg-color);
@@ -693,31 +836,66 @@ function submitRegister() {
 }
 
 .bind-container {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 15px;
-}
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 15px;
+	}
+
+	.email-suggestions {
+		background-color: var(--el-bg-color);
+		border: 1px solid var(--el-border-color-light);
+		border-radius: 6px;
+		padding: 10px;
+	}
+
+	.suggestion-title {
+		font-size: 14px;
+		font-weight: bold;
+		margin-bottom: 8px;
+		color: var(--el-text-color-primary);
+	}
+
+	.suggestion-list {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+	}
+
+	.suggestion-item {
+		padding: 8px 12px;
+		border-radius: 4px;
+		cursor: pointer;
+		font-size: 14px;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		transition: all 0.2s;
+	}
+
+	.suggestion-item:hover {
+		background-color: var(--el-color-primary-light-9);
+	}
+
+	.suggestion-item.recommended {
+		background-color: var(--el-color-primary-light-10);
+		border: 1px solid var(--el-color-primary-light-5);
+	}
+
+	.recommended-tag {
+		font-size: 12px;
+		color: var(--el-color-primary);
+		background-color: var(--el-color-primary-light-9);
+		padding: 2px 6px;
+		border-radius: 3px;
+	}
+
+	.suggestion-email {
+		color: var(--el-text-color-primary);
+	}
 
 .setting-icon {
   position: relative;
   top: 6px;
-}
-
-.github {
-  position: fixed;
-  width: 35px;
-  height: 35px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 50%;
-  background: var(--el-bg-color);
-  bottom: 10px;
-  right: 10px;
-  z-index: 1000;
-  border: 1px solid var(--el-border-color-light);
-  box-shadow: var(--el-box-shadow-light);
-  cursor: pointer;
 }
 
 :deep(.el-input-group__append) {

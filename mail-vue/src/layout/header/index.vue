@@ -38,7 +38,7 @@
               {{ userStore.user.email }}
             </div>
             <div class="detail-user-type">
-              <el-tag>{{ userStore.user.role.name }}</el-tag>
+              <el-tag>{{ $t(userStore.user.role.name) }}</el-tag>
             </div>
             <div class="action-info">
               <div>
@@ -244,7 +244,7 @@ function clickLogout() {
   logoutLoading.value = true
   logout().then(() => {
     localStorage.removeItem("token")
-    router.replace('/login')
+    window.location.replace('/login')
   }).finally(() => {
     logoutLoading.value = false
   })

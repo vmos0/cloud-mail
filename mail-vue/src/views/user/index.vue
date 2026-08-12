@@ -10,7 +10,7 @@
         >
         </el-input>
       </div>
-      <el-select v-model="params.status" placeholder="Select" class="status-select"
+      <el-select v-model="params.status" :placeholder="$t('select')" class="status-select"
                  :style="`width: ${locale === 'en' ? 95 : 80 }px`">
         <el-option :key="-1" :label="$t('all')" :value="-1"/>
         <el-option :key="0" :label="$t('active')" :value="0"/>
@@ -145,8 +145,8 @@
     <el-dialog class="dialog" v-model="setTypeShow" :title="$t('changePerm')" @closed="resetUserForm">
       <div class="dialog-box">
         <el-input disabled :model-value="$t('admin')" v-if="userForm.type === 0"/>
-        <el-select v-else v-model="userForm.type" placeholder="Select">
-          <el-option v-for="item in roleList" :label="item.name" :value="item.roleId" :key="item.roleId"/>
+        <el-select v-else v-model="userForm.type" :placeholder="$t('select')">
+          <el-option v-for="item in roleList" :label="$t(item.name)" :value="item.roleId" :key="item.roleId"/>
         </el-select>
         <el-button :disabled="userForm.type === 0" class="btn" :loading="settingLoading" type="primary" @click="setType"
         >{{ $t('save') }}
@@ -180,7 +180,7 @@
         </el-input>
         <el-input type="password" v-model="addForm.password" :placeholder="$t('password')"/>
         <el-select v-model="addForm.type" :placeholder="$t('perm')">
-          <el-option v-for="item in roleList" :label="item.name" :value="item.roleId" :key="item.roleId"/>
+          <el-option v-for="item in roleList" :label="$t(item.name)" :value="item.roleId" :key="item.roleId"/>
         </el-select>
         <el-button class="btn" type="primary" @click="submit" :loading="addLoading"
         >{{ $t('add') }}
@@ -229,9 +229,9 @@
       <div class="details">
         <div v-if="userDetails.username"><span class="details-item-title">LinuxDo:</span>
           <el-avatar :src="userDetails.avatar" :size="30" class="linuxdo-avatar"  />
-          <span style="margin: 0 10px">用户名：{{userDetails.username}}</span>
+          <span style="margin: 0 10px">{{ $t('username') }}：{{userDetails.username}}</span>
           <span>
-                    等级：<el-tag type="success">{{userDetails.trustLevel}}</el-tag>
+                    {{ $t('level') }}：<el-tag type="success">{{userDetails.trustLevel}}</el-tag>
                   </span>
         </div>
         <div v-if="!sendNumShow"><span

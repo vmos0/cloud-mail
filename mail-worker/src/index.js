@@ -6,6 +6,8 @@ import emailService from './service/email-service';
 import kvObjService from './service/kv-obj-service';
 import oauthService from "./service/oauth-service";
 import analysisService from './service/analysis-service';
+import attService from './service/att-service';
+import KvConst from './const/kv-const';
 export default {
 	 async fetch(req, env, ctx) {
 
@@ -17,10 +19,51 @@ export default {
 			return app.fetch(req, env, ctx);
 		}
 
+		// 处理OAuth回调请求
+		if (/^\/oauth\/[^/]+\/login$/.test(url.pathname)) {
+			return app.fetch(req, env, ctx);
+		}
+
 		 if (['/static/','/attachments/'].some(p => url.pathname.startsWith(p))) {
 			 return await kvObjService.toObjResp( { env }, url.pathname.substring(1));
 		 }
 
+		 if (url.pathname === '/manifest.webmanifest') {
+			try {
+				const [setting, assetResponse] = await Promise.all([
+					env.kv.get(KvConst.SETTING, { type: 'json' }),
+					env.assets.fetch(req)
+				]);
+				if (!assetResponse.ok) {
+					return assetResponse;
+				}
+				const title = setting?.title || 'Cloud Mail';
+				const manifest = await assetResponse.json();
+				manifest.name = title;
+				manifest.short_name = title;
+				return new Response(JSON.stringify(manifest), {
+					headers: { 'Content-Type': 'application/manifest+json' },
+				});
+			} catch (e) {
+				return env.assets.fetch(req);
+			}
+		}
+		const assetResponse = await env.assets.fetch(req);
+		const contentType = assetResponse.headers.get('content-type') || '';
+		if (contentType.includes('text/html')) {
+			try {
+				const setting = await env.kv.get(KvConst.SETTING, { type: 'json' });
+				const title = setting?.title || 'Cloud Mail';
+				let html = await assetResponse.text();
+				html = html.replace('<title>Cloud Mail</title>', `<title>${title}</title>`);
+				return new Response(html, {
+					status: assetResponse.status,
+					headers: assetResponse.headers,
+				});
+			} catch (e) {
+				return assetResponse;
+			}
+		}
 		return env.assets.fetch(req);
 	},
 	email: email,
@@ -33,7 +76,10 @@ export default {
 		await verifyRecordService.clearRecord({ env })
 		await userService.resetDaySendCount({ env })
 		await emailService.completeReceiveAll({ env })
+		await emailService.autoDeleteEmails({ env })
 		await oauthService.clearNoBindOathUser({ env })
 		await analysisService.refreshEchartsCache({ env })
+		await attService.cleanExpiredAttachments({ env })
+		await attService.checkAndCleanOldAttachments({ env })
 	},
 };
