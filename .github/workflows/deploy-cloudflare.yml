@@ -28,7 +28,7 @@ jobs:
       CLOUDFLARE_EMAIL: ${{ secrets.CF_EMAIL || vars.CF_EMAIL || false }}
       ANALYSIS_CACHE: ${{ secrets.ANALYSIS_CACHE || vars.ANALYSIS_CACHE || false }}
       LINUXDO_SWITCH: ${{ secrets.LINUXDO_SWITCH || vars.LINUXDO_SWITCH }}
-      GITHUB_SWITCH: ${{ secrets.GITHUB_SWITCH || vars.GITHUB_SWITCH }}
+      GITHUB_SWITCH: ${{ secrets.GHUB_SWITCH || vars.GHUB_SWITCH }}
       GITLAB_SWITCH: ${{ secrets.GITLAB_SWITCH || vars.GITLAB_SWITCH }}
       GOOGLE_SWITCH: ${{ secrets.GOOGLE_SWITCH || vars.GOOGLE_SWITCH }}
 
