@@ -464,31 +464,6 @@ const emailService = {
 		return result;
 	},
 
-	async toAttachmentArrayBuffer(attachment) {
-		let content = attachment.content;
-
-		if (!content) {
-			return null;
-		}
-
-		if (content instanceof ArrayBuffer) {
-			return content;
-		}
-
-		if (content instanceof Uint8Array) {
-			return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
-		}
-
-		if (typeof content === 'string') {
-			if (content.startsWith('data:')) {
-				content = content.split(',')[1] || content;
-			}
-			return fileUtils.base64ToUint8Array(content.replace(/\s+/g, '')).buffer;
-		}
-
-		return content;
-	},
-
 	async toResendAttachments(attachments = []) {
 		const result = [];
 
@@ -503,21 +478,6 @@ const emailService = {
 				content,
 				contentType: attachment.contentType || attachment.mimeType || attachment.type || 'application/octet-stream'
 			});
-		}
-
-		return result;
-	},
-
-	async toArrayBufferAttachments(attachments = []) {
-		const result = [];
-
-		for (const attachment of attachments) {
-			const content = await this.toAttachmentArrayBuffer(attachment);
-			if (!content) {
-				continue;
-			}
-
-			result.push({ ...attachment, content });
 		}
 
 		return result;
