@@ -87,6 +87,7 @@ export const setting = sqliteTable('setting', {
 	gitlabCallbackUrl: text('gitlab_callback_url').default('').notNull(),
 	googleClientId: text('google_client_id').default('').notNull(),
 	googleClientSecret: text('google_client_secret').default('').notNull(),
-	googleCallbackUrl: text('google_callback_url').default('').notNull()
+	googleCallbackUrl: text('google_callback_url').default('').notNull(),
+	syncDelete: integer('sync_delete').default(1).notNull()
 });
 export default setting

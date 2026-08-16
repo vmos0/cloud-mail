@@ -199,7 +199,8 @@ const dbInit = {
 			`ALTER TABLE setting ADD COLUMN feishu_show_time INTEGER NOT NULL DEFAULT 0;`,
 			`ALTER TABLE setting ADD COLUMN feishu_show_view_button INTEGER NOT NULL DEFAULT 0;`,
 			`ALTER TABLE setting ADD COLUMN feishu_custom_domain TEXT NOT NULL DEFAULT '';`,
-			`ALTER TABLE setting ADD COLUMN feishu_failure_notice INTEGER NOT NULL DEFAULT 1;`
+			`ALTER TABLE setting ADD COLUMN feishu_failure_notice INTEGER NOT NULL DEFAULT 1;`,
+			`ALTER TABLE setting ADD COLUMN sync_delete INTEGER NOT NULL DEFAULT 0;`
 		];
 
 		const promises = ADD_COLUMN_SQL_LIST.map(async (sql) => {
