@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   repair:
-    if: ${{ github.event.head_commit.message != 'fix: repair forward email body and attachments' }}
+    if: "${{ github.event.head_commit.message != 'fix: repair forward email body and attachments' }}"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
