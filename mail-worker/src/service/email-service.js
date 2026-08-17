@@ -26,6 +26,7 @@ import resendService from './resend-service';
 import brevoService from './brevo-service';
 import feishuService from './feishu-service';
 import verifyUtils from '../utils/verify-utils';
+import r2Service from './r2-service';
 
 const emailService = {
 
@@ -174,6 +175,8 @@ const emailService = {
 			sendType, //发件类型
 			emailId, //邮件id，如果是回复邮件会带
 			receiveEmail, //收件人邮箱
+			cc = [], //抄送
+			bcc = [], //密送
 			text, //邮件纯文本
 			content, //邮件内容
 			subject, //邮件标题
@@ -285,6 +288,34 @@ const emailService = {
 
 		}
 
+		//转发邮件时，从当前账号自己的附件记录中读取原附件并重新发送
+		if (sendType === 'forward' && emailId) {
+			const sourceEmail = await orm(c).select({ emailId: email.emailId }).from(email).where(
+				and(eq(email.emailId, Number(emailId)), eq(email.userId, userId))
+			).get();
+
+			if (!sourceEmail) {
+				throw new BizError('转发邮件不存在或无权限');
+			}
+
+			const sourceAttList = await attService.selectByEmailIds(c, [Number(emailId)]);
+			if (sourceAttList.length > 10) {
+				throw new BizError(t('attLimit'));
+			}
+
+			for (const sourceAtt of sourceAttList) {
+				const obj = await r2Service.getObj(c, sourceAtt.key);
+				if (!obj) continue;
+				attachments.push({
+					content: await obj.arrayBuffer(),
+					filename: sourceAtt.filename,
+					size: sourceAtt.size,
+					contentType: sourceAtt.mimeType,
+					type: sourceAtt.mimeType
+				});
+			}
+		}
+
 		let sendResult = {};
 		let emailProviderId = null;
 
@@ -293,6 +324,8 @@ const emailService = {
 			const sendForm = {
 				from: `${name} <${accountRow.email}>`,
 				to: [...receiveEmail],
+				cc: [...cc],
+				bcc: [...bcc],
 				subject: subject,
 				text: text,
 				html: html,
@@ -313,6 +346,8 @@ const emailService = {
 				sendResult = await brevoService.sendEmail(c, brevoToken, sendForm);
 				emailProviderId = sendResult.data?.messageId;
 			} else {
+			    sendForm.attachments = await this.toResendAttachments(sendForm.attachments || []);
+
 				sendResult = await resendService.sendEmail(c, resendToken, sendForm);
 				emailProviderId = sendResult.data?.id;
 			}
@@ -336,6 +371,8 @@ const emailService = {
 		emailData.subject = subject;
 		emailData.content = html;
 		emailData.text = text;
+		emailData.cc = JSON.stringify(cc || []);
+		emailData.bcc = JSON.stringify(bcc || []);
 		emailData.accountId = accountId;
 		emailData.status = useCloudflareEmail ? emailConst.status.DELIVERED : emailConst.status.SENT;
 		emailData.type = emailConst.type.SEND;
@@ -386,7 +423,7 @@ const emailService = {
 
 		//如果全是站内接收方，直接写入数据库
 		if (allInternal) {
-			await this.HandleOnSiteEmail(c, receiveEmail, emailResult, attList);
+			await this.HandleOnSiteEmail(c, [...new Set([...(receiveEmail || []), ...(cc || []), ...(bcc || [])])], emailResult, attList);
 		}
 
 		const dateStr = dayjs().format('YYYY-MM-DD');
@@ -411,9 +448,18 @@ const emailService = {
 	},
 
 	async sendByCloudflareEmail(c, sendForm) {
+	        const match = sendForm.from.match(/^(.*)\s<(.+)>$/);
     		const cloudflareSendForm = {
-        		from: sendForm.from,
+    		from: match ? {  
+		        email: match[2],  
+		        name: match[1]  
+	        } : {  
+		        email: sendForm.from,  
+		        name: ''  
+	        },
         		to: sendForm.to,
+        		cc: sendForm.cc || [],
+        		bcc: sendForm.bcc || [],
         		subject: sendForm.subject
     		};
 
