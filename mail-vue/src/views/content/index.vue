@@ -35,7 +35,7 @@
             <el-alert v-if="email.status === 5" :closable="false" :title="$t('delayed')" class="email-msg" type="warning" show-icon />
           </div>
           <el-scrollbar class="htm-scrollbar" :class="email.attList.length === 0 ? 'bottom-distance' : ''">
-            <ShadowHtml class="shadow-html" :html="formatImage(email.content)" v-if="email.content" />
+            <ShadowHtml class="shadow-html" :html="formatImage(email.content)" v-if="shouldShowHtmlContent()" />
             <pre v-else class="email-text" >{{email.text}}</pre>
           </el-scrollbar>
           <div class="att" v-if="email.attList.length > 0">
@@ -78,7 +78,7 @@ import ShadowHtml from '@/components/shadow-html/index.vue'
 import {reactive, ref, watch, onMounted, onUnmounted} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
-import {emailDelete, emailRead} from "@/request/email.js";
+import {emailDelete, emailRead, emailLatest} from "@/request/email.js";
 import {Icon} from "@iconify/vue";
 import {useEmailStore} from "@/store/email.js";
 import {useAccountStore} from "@/store/account.js";
@@ -98,7 +98,7 @@ const settingStore = useSettingStore();
 const accountStore = useAccountStore();
 const emailStore = useEmailStore();
 const router = useRouter()
-const email = emailStore.contentData.email
+const email = reactive({ ...(emailStore.contentData.email || {}) })
 const showPreview = ref(false)
 const srcList = reactive([])
 
@@ -107,7 +107,15 @@ watch(() => accountStore.currentAccountId, () => {
   handleBack()
 })
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    if (email.emailId) {
+      const full = await emailLatest(email.emailId, accountStore.currentAccountId, email.allReceive ?? 0)
+      if (full && typeof full === 'object') Object.assign(email, full)
+    }
+  } catch (error) {
+    console.warn('Failed to load full email detail, using cached email:', error)
+  }
   if (emailStore.contentData.showUnread && email.unread === EmailUnreadEnum.UNREAD) {
     email.unread = EmailUnreadEnum.READ;
     emailRead([email.emailId]);
@@ -145,6 +153,33 @@ function formatImage(content) {
   content = content || '';
   const domain = settingStore.settings.r2Domain;
   return  content.replace(/{{domain}}/g, toOssDomain(domain) + '/');
+}
+
+function shouldShowHtmlContent() {
+  if (!email.content) return false;
+  if (!email.text) return true;
+
+  const htmlText = stripHtml(email.content);
+  const text = String(email.text).replace(/\s+/g, ' ').trim();
+  if (!htmlText) return false;
+
+  const sample = text.slice(0, Math.min(80, text.length));
+  if (sample.length >= 20 && !htmlText.includes(sample) && text.length > htmlText.length + 20) {
+    return false;
+  }
+
+  return true;
+}
+
+function stripHtml(content) {
+  return String(content || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function showImage(key) {

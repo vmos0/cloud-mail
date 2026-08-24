@@ -602,7 +602,10 @@ const emailService = {
 		const { noRecipient  } = await settingService.query(c);
 
 		//查询所有收件人账号信息
-		let accountList = await orm(c).select().from(account).where(inArray(account.email, receiveEmail)).all();
+		const normalizedReceiveEmail = receiveEmail.map(email => email.toLowerCase());
+		let accountList = await orm(c).select().from(account).where(
+			inArray(sql`${account.email} COLLATE NOCASE`, normalizedReceiveEmail)
+		).all();
 
 		// 对于含+未精确匹配的收件人，获取基础地址账号
 		const plusEmails = receiveEmail.filter(
@@ -642,12 +645,12 @@ const emailService = {
 			emailValues.toName = emailUtils.getName(email);
 			emailValues.emailId = null;
 
-			let accountRow = allAccounts.find(accountRow => accountRow.email === email);
+			let accountRow = allAccounts.find(accountRow => accountRow.email.toLowerCase() === email.toLowerCase());
 
 			// 精确匹配不到时回退到主地址（去掉 +tag）
 			if (!accountRow && email.includes('+')) {
 				const baseEmail = emailUtils.getBaseEmail(email);
-				accountRow = allAccounts.find(accountRow => accountRow.email === baseEmail);
+				accountRow = allAccounts.find(accountRow => accountRow.email.toLowerCase() === baseEmail.toLowerCase());
 			}
 
 			//如果收件人存在就把邮件信息改成收件人的
