@@ -113,10 +113,6 @@ const settingService = {
 
 		domainList = domainList.map(item => '@' + item);
 		setting.domainList = domainList;
-		setting.linuxdoSwitch = this.parseBoolean(c.env.linuxdo_switch);
-		setting.githubSwitch = this.parseBoolean(c.env.github_switch);
-		setting.gitlabSwitch = this.parseBoolean(c.env.gitlab_switch);
-		setting.googleSwitch = this.parseBoolean(c.env.google_switch);
 
 		let projectLink = c.env.project_link;
 		if (typeof projectLink === 'string' && projectLink === 'false') {
@@ -383,12 +379,6 @@ const settingService = {
 			minEmailPrefix: settingRow.minEmailPrefix,
 			projectLink: settingRow.projectLink
 		};
-	},
-
-	parseBoolean(value) {
-		if (typeof value === 'string' && value === 'true') return true;
-		if (value === true) return true;
-		return false;
 	},
 };
 

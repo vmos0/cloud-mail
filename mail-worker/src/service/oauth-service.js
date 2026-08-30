@@ -194,6 +194,7 @@ const oauthService = {
 		const { code } = params;
 
 		const setting = await settingService.query(c);
+		this.assertEnabled(setting, 'gitlabSwitch');
 
 		const reqParams = new URLSearchParams()
 		reqParams.append('client_id', setting.gitlabClientId)
