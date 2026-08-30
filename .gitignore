@@ -34,3 +34,4 @@ mail-worker/wrangler-test.toml
 .playwright-mcp/
 public-inbox-dialog.png
 public-inbox-requests.txt
+git-tools.js

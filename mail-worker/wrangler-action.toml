@@ -32,7 +32,7 @@ not_found_handling = "single-page-application"
 run_worker_first = true
 
 [triggers]
-crons = ["0 16 * * *"]
+crons = ["0 * * * *"]	#每小时执行；resetDaySendCount 仅在 UTC 0 点生效
 
 
 [vars]
@@ -42,11 +42,6 @@ analysis_cache = "${ANALYSIS_CACHE}"
 domain = "${DOMAIN}"				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
 admin = "${ADMIN}"				#管理员的邮箱	示例: admin@example.com
 jwt_secret = "${JWT_SECRET}"			#jwt令牌的密钥,随便填一串字符串
-
-linuxdo_switch = "${LINUXDO_SWITCH}"
-github_switch = "${GITHUB_SWITCH}"
-gitlab_switch = "${GITLAB_SWITCH}"
-google_switch = "${GOOGLE_SWITCH}"
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"

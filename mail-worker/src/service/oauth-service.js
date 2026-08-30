@@ -6,6 +6,7 @@ import userService from "./user-service";
 import loginService from "./login-service";
 import cryptoUtils from "../utils/crypto-utils";
 import settingService from "./setting-service";
+import {t} from '../i18n/i18n';
 
 const oauthService = {
 
@@ -43,15 +44,16 @@ const oauthService = {
 
 	async linuxdoLogin(c, params) {
 
-		const { code } = params;
+		const { code, redirectUri } = params;
 
 		const setting = await settingService.query(c);
+		this.assertEnabled(setting, 'linuxdoSwitch');
 
 		const reqParams = new URLSearchParams()
 		reqParams.append('client_id', setting.linuxdoClientId)
 		reqParams.append('client_secret', setting.linuxdoClientSecret)
 		reqParams.append('code', code)
-		reqParams.append('redirect_uri', setting.linuxdoCallbackUrl)
+		reqParams.append('redirect_uri', redirectUri)
 		reqParams.append('grant_type', 'authorization_code')
 
 		const tokenRes = await fetch("https://connect.linux.do/oauth2/token", {
@@ -90,9 +92,10 @@ const oauthService = {
 
 	async githubLogin(c, params) {
 
-		const { code } = params;
+		const { code, redirectUri } = params;
 
 		const setting = await settingService.query(c);
+		this.assertEnabled(setting, 'githubSwitch');
 
 		const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
 			method: "POST",
@@ -104,7 +107,7 @@ const oauthService = {
 				client_id: setting.githubClientId,
 				client_secret: setting.githubClientSecret,
 				code: code,
-				redirect_uri: setting.githubCallbackUrl
+				redirect_uri: redirectUri
 			})
 		});
 
@@ -135,6 +138,53 @@ const oauthService = {
 		userInfo.username = userInfo.login;
 		userInfo.avatar = userInfo.avatar_url;
 		userInfo.platform = 'github';
+
+		return await this.saveAndLogin(c, userInfo);
+	},
+
+	async googleLogin(c, params) {
+
+		const { code, redirectUri } = params;
+
+		const setting = await settingService.query(c);
+		this.assertEnabled(setting, 'googleSwitch');
+
+		const reqParams = new URLSearchParams()
+		reqParams.append('client_id', setting.googleClientId)
+		reqParams.append('client_secret', setting.googleClientSecret)
+		reqParams.append('code', code)
+		reqParams.append('redirect_uri', redirectUri)
+		reqParams.append('grant_type', 'authorization_code')
+
+		const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+			method: "POST",
+			headers: { "Content-Type": "application/x-www-form-urlencoded" },
+			body: reqParams.toString()
+		});
+
+		if (!tokenRes.ok) {
+			throw new BizError(tokenRes.statusText);
+		}
+
+		const token = await tokenRes.json();
+
+		const userRes = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+			headers: {
+				Authorization: 'Bearer ' + token.access_token
+			}
+		});
+
+		if (!userRes.ok) {
+			throw new BizError(userRes.statusText);
+		}
+
+		const userInfo = await userRes.json();
+
+		userInfo.oauthUserId = String(userInfo.sub);
+		userInfo.username = userInfo.email;
+		userInfo.name = userInfo.name;
+		userInfo.avatar = userInfo.picture;
+		userInfo.platform = 'google';
 
 		return await this.saveAndLogin(c, userInfo);
 	},
@@ -181,52 +231,6 @@ const oauthService = {
 		userInfo.name = userInfo.name;
 		userInfo.avatar = userInfo.avatar_url;
 		userInfo.platform = 'gitlab';
-
-		return await this.saveAndLogin(c, userInfo);
-	},
-
-	async googleLogin(c, params) {
-
-		const { code } = params;
-
-		const setting = await settingService.query(c);
-
-		const reqParams = new URLSearchParams()
-		reqParams.append('client_id', setting.googleClientId)
-		reqParams.append('client_secret', setting.googleClientSecret)
-		reqParams.append('code', code)
-		reqParams.append('redirect_uri', setting.googleCallbackUrl)
-		reqParams.append('grant_type', 'authorization_code')
-
-		const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-			method: "POST",
-			headers: { "Content-Type": "application/x-www-form-urlencoded" },
-			body: reqParams.toString()
-		});
-
-		if (!tokenRes.ok) {
-			throw new BizError(tokenRes.statusText);
-		}
-
-		const token = await tokenRes.json();
-
-		const userRes = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
-			headers: {
-				Authorization: 'Bearer ' + token.access_token
-			}
-		});
-
-		if (!userRes.ok) {
-			throw new BizError(userRes.statusText);
-		}
-
-		const userInfo = await userRes.json();
-
-		userInfo.oauthUserId = String(userInfo.sub);
-		userInfo.username = userInfo.email;
-		userInfo.name = userInfo.name;
-		userInfo.avatar = userInfo.picture;
-		userInfo.platform = 'google';
 
 		return await this.saveAndLogin(c, userInfo);
 	},
@@ -343,6 +347,12 @@ const oauthService = {
 		}
 
 		return suggestions;
+	},
+
+	assertEnabled(setting, switchKey) {
+		if (setting[switchKey] !== 0) {
+			throw new BizError(t('oauthDisabled'));
+		}
 	},
 
 	async getById(c, oauthUserId, platform) {

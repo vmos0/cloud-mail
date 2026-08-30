@@ -34,11 +34,11 @@
             <el-alert v-if="email.status === 4" :closable="false" :title="$t('complained')" class="email-msg" type="warning" show-icon />
             <el-alert v-if="email.status === 5" :closable="false" :title="$t('delayed')" class="email-msg" type="warning" show-icon />
           </div>
-          <el-scrollbar class="htm-scrollbar" :class="email.attList.length === 0 ? 'bottom-distance' : ''">
+          <el-scrollbar class="htm-scrollbar" :class="!email.attList?.length ? 'bottom-distance' : ''">
             <ShadowHtml class="shadow-html" :html="formatImage(email.content)" v-if="shouldShowHtmlContent()" />
             <pre v-else class="email-text" >{{email.text}}</pre>
           </el-scrollbar>
-          <div class="att" v-if="email.attList.length > 0">
+          <div class="att" v-if="email.attList?.length > 0">
             <div class="att-title">
               <span>{{$t('attachments')}}</span>
               <span>{{$t('attCount',{total: email.attList.length})}}</span>
@@ -75,7 +75,7 @@
 </template>
 <script setup>
 import ShadowHtml from '@/components/shadow-html/index.vue'
-import {reactive, ref, watch, onMounted, onUnmounted} from "vue";
+import {computed, reactive, ref, watch, onMounted, onUnmounted} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
 import {emailDelete, emailRead, emailLatest} from "@/request/email.js";
@@ -107,27 +107,72 @@ watch(() => accountStore.currentAccountId, () => {
   handleBack()
 })
 
+let readRequesting = false
+
+function tryMarkRead() {
+  if (!emailStore.contentData.showUnread || readRequesting) return
+
+  const current = email
+  if (!current?.emailId || current.unread !== EmailUnreadEnum.UNREAD) return
+
+  const full = emailStore.detailMap[current.emailId]
+  const detailReady = !!full || !!(current.content || current.text)
+  if (!detailReady) return
+
+  readRequesting = true
+
+  const emailId = current.emailId
+  current.unread = EmailUnreadEnum.READ
+
+  if (emailStore.detailMap[emailId]) {
+    emailStore.detailMap[emailId].unread = EmailUnreadEnum.READ
+  }
+
+  emailStore.markListRead(emailId)
+
+  emailRead([emailId]).finally(() => {
+    readRequesting = false
+  })
+}
+
+watch(
+  () => [
+    email.emailId,
+    email.content,
+    email.text,
+    emailStore.detailMap[email.emailId]
+  ],
+  () => tryMarkRead(),
+  { flush: 'post' }
+)
+
 onMounted(async () => {
   try {
     if (email.emailId) {
-      const full = await emailLatest(email.emailId, accountStore.currentAccountId, email.allReceive ?? 0)
-      if (full && typeof full === 'object') Object.assign(email, full)
+      const full = await emailLatest(
+        email.emailId,
+        accountStore.currentAccountId,
+        email.allReceive ?? 0
+      )
+
+      if (full && typeof full === 'object') {
+        Object.assign(email, full)
+      }
     }
   } catch (error) {
     console.warn('Failed to load full email detail, using cached email:', error)
   }
-  if (emailStore.contentData.showUnread && email.unread === EmailUnreadEnum.UNREAD) {
-    email.unread = EmailUnreadEnum.READ;
-    emailRead([email.emailId]);
-  }
-  window.addEventListener('keydown', handleKeyDown);
+
+  tryMarkRead()
+
+  window.addEventListener('keydown', handleKeyDown)
 })
 
 onUnmounted(() => {
-  emailStore.contentData.showUnread = false;
-  window.removeEventListener('keydown', handleKeyDown);
+  emailStore.contentData.showUnread = false
+  readRequesting = false
+  window.removeEventListener('keydown', handleKeyDown)
 })
-
 function handleKeyDown(event) {
   if (event.key !== 'Escape') return;
   if (showPreview.value) return;
@@ -138,11 +183,11 @@ function handleKeyDown(event) {
 }
 
 function openReply() {
-  uiStore.writerRef.openReply(email)
+  uiStore.writerRef.openReply(email.value)
 }
 
 function openForward() {
-  uiStore.writerRef.openForward(email)
+  uiStore.writerRef.openForward(email.value)
 }
 
 function toMessage(message) {
@@ -195,32 +240,33 @@ function isImage(filename) {
 }
 
 function formateReceive(recipient) {
+  if (!recipient) return ''
   recipient = JSON.parse(recipient)
   return recipient.map(item => item.address).join(', ')
 }
 
 function changeStar() {
-  if (email.isStar) {
-    email.isStar = 0;
-    starCancel(email.emailId).then(() => {
-      email.isStar = 0;
-      emailStore.cancelStarEmailId = email.emailId
+  if (email.value.isStar) {
+    email.value.isStar = 0;
+    starCancel(email.value.emailId).then(() => {
+      email.value.isStar = 0;
+      emailStore.cancelStarEmailId = email.value.emailId
       setTimeout(() => emailStore.cancelStarEmailId = 0)
-      emailStore.starScroll?.deleteEmail([email.emailId])
+      emailStore.starScroll?.deleteEmail([email.value.emailId])
     }).catch((e) => {
       console.error(e)
-      email.isStar = 1;
+      email.value.isStar = 1;
     })
   } else {
-    email.isStar = 1;
-    starAdd(email.emailId).then(() => {
-      email.isStar = 1;
-      emailStore.addStarEmailId = email.emailId
+    email.value.isStar = 1;
+    starAdd(email.value.emailId).then(() => {
+      email.value.isStar = 1;
+      emailStore.addStarEmailId = email.value.emailId
       setTimeout(() => emailStore.addStarEmailId = 0)
-      emailStore.starScroll?.addItem(email)
+      emailStore.starScroll?.addItem(email.value)
     }).catch((e) => {
       console.error(e)
-      email.isStar = 0;
+      email.value.isStar = 0;
     })
   }
 }
@@ -236,23 +282,23 @@ const handleDelete = () => {
     type: 'warning'
   }).then(() => {
     if (emailStore.contentData.delType === 'logic') {
-      emailDelete(email.emailId).then(() => {
+      emailDelete(email.value.emailId).then(() => {
         ElMessage({
           message: t('delSuccessMsg'),
           type: 'success',
           plain: true,
         })
-        emailStore.deleteIds = [email.emailId]
+        emailStore.deleteIds = [email.value.emailId]
       })
     } else  {
 
-      allEmailDelete(email.emailId).then(() => {
+      allEmailDelete(email.value.emailId).then(() => {
         ElMessage({
           message: t('delSuccessMsg'),
           type: 'success',
           plain: true,
         })
-        emailStore.deleteIds = [email.emailId]
+        emailStore.deleteIds = [email.value.emailId]
       })
     }
 

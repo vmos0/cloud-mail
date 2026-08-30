@@ -117,6 +117,18 @@ const settingService = {
 		setting.githubSwitch = this.parseBoolean(c.env.github_switch);
 		setting.gitlabSwitch = this.parseBoolean(c.env.gitlab_switch);
 		setting.googleSwitch = this.parseBoolean(c.env.google_switch);
+
+		let projectLink = c.env.project_link;
+		if (typeof projectLink === 'string' && projectLink === 'false') {
+			projectLink = false
+		} else if (projectLink === false) {
+			projectLink = false
+		} else {
+			projectLink = true
+		}
+
+		setting.projectLink = projectLink;
+
 		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
 
 		if (typeof c.set === 'function') {
@@ -358,10 +370,8 @@ const settingService = {
 			notice: settingRow.notice,
 			loginDomain: settingRow.loginDomain,
 			linuxdoClientId: settingRow.linuxdoClientId,
-			linuxdoCallbackUrl: settingRow.linuxdoCallbackUrl,
 			linuxdoSwitch: settingRow.linuxdoSwitch,
 			githubClientId: settingRow.githubClientId,
-			githubCallbackUrl: settingRow.githubCallbackUrl,
 			githubSwitch: settingRow.githubSwitch,
 			gitlabClientId: settingRow.gitlabClientId,
 			gitlabCallbackUrl: settingRow.gitlabCallbackUrl,
@@ -370,7 +380,8 @@ const settingService = {
 			googleCallbackUrl: settingRow.googleCallbackUrl,
 			googleSwitch: settingRow.googleSwitch,
 			emailProvider: settingRow.emailProvider,
-			minEmailPrefix: settingRow.minEmailPrefix
+			minEmailPrefix: settingRow.minEmailPrefix,
+			projectLink: settingRow.projectLink
 		};
 	},
 

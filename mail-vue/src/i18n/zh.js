@@ -34,6 +34,7 @@ const zh = {
     change: '修改',
     changePwdBtn: '修改密码',
     username: '用户名',
+    trustLevel: '等级',
     password: '密码',
     defaultUser: '普通用户',
     defaultDesc: '只有普通使用权限',
@@ -147,7 +148,7 @@ const zh = {
     hasAccount: '已有账号?',
     regSwitch: '创建账号',
     loginSwitch: '去登录',
-    websiteSetting: '网站设置',
+    websiteSetting: '基本设置',
     websiteReg: '用户注册',
     loginDomain: '隐藏登录域名',
     syncDelete: '同步删除',
@@ -167,6 +168,13 @@ const zh = {
     resendToken: 'Resend Token',
     cloudflareEmailSending: 'Cloudflare 邮件发送',
     blackList: '邮件黑名单',
+    autoClean: '自动清理',
+    autoCleanDesc: '自动删除超过指定天数的邮件，0 表示关闭',
+    autoCleanDays: '保留天数',
+    autoCleanRetain: '保留{days}天',
+    autoCleanExclude: '排除用户',
+    autoCleanExcludeDesc: '输入用户邮箱，这些用户的邮件不会被清理',
+    dayUnit: '天',
     codeRecognition: '识别验证码',
     codeRecognitionRules: '识别规则',
     codeRecognitionRulesDesc: '只识别包含以下信息的邮件，为空识别全部',
@@ -481,7 +489,6 @@ const zh = {
     searchEmail: '搜索邮箱',
     searchSender: '搜索发件人',
     userEmail: '用户邮箱',
-    notOwner: '基础邮箱不属于您',
     // 飞书推送配置
     appId: '应用 ID',
     appSecret: '应用密钥',
@@ -509,6 +516,6 @@ const zh = {
     oauthSetting: 'OAuth',
     clientId: '客户端 ID',
     clientSecret: '客户端密钥',
-    callbackBase: 'https://domain'
+    notOwner: '基础邮箱不属于您'
 }
 export default zh

@@ -159,19 +159,19 @@ const oauthProviders = computed(() => {
     {
       key: 'gitlab',
       label: 'GitLab',
-      icon: 'mingcute:gitlab-fill',
-      iconType: 'iconify'
-    },
-    {
-      key: 'github',
-      label: 'GitHub',
-      icon: 'mingcute:github-fill',
+      icon: 'devicon:gitlab',
       iconType: 'iconify'
     },
     {
       key: 'google',
       label: 'Google',
-      icon: 'mingcute:google-fill',
+      icon: 'devicon:google',
+      iconType: 'iconify'
+    },
+    {
+      key: 'github',
+      label: 'GitHub',
+      icon: 'codicon:github-inverted',
       iconType: 'iconify'
     },
     {
@@ -183,7 +183,7 @@ const oauthProviders = computed(() => {
   ]
 
   return allProviders.filter(
-    p => settingStore.settings[p.key + 'Switch']
+    p => settingStore.settings[p.key + 'Switch'] === 0
   )
 })
 

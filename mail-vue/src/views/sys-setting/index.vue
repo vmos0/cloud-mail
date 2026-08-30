@@ -6,7 +6,7 @@
     <el-scrollbar class="scroll" v-if="!firstLoading">
       <div class="scroll-body">
         <div class="card-grid">
-          <!-- Website Settings Card -->
+          <!-- Basic Settings Card -->
           <div class="settings-card">
             <div class="card-title">{{ $t('websiteSetting') }}</div>
             <div class="card-content">
@@ -360,20 +360,36 @@
                   </el-select>
                 </div>
               </div>
-              <div class="setting-item">
-                <div>
-                  <span>{{ $t('anonymousReceiveBlacklist') }}</span>
-                  <el-tooltip effect="dark" :content="$t('anonymousReceiveBlacklistDesc')">
-                    <Icon class="warning" icon="fe:warning" width="18" height="18"/>
-                  </el-tooltip>
+                <div class="setting-item">
+                  <div>
+                    <span>{{ $t('anonymousReceiveBlacklist') }}</span>
+                    <el-tooltip effect="dark" :content="$t('anonymousReceiveBlacklistDesc')">
+                      <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+                    </el-tooltip>
+                  </div>
+                  <div class="forward">
+                    <el-button class="opt-button" style="margin-top: 0" @click="openAnonymousReceiveBlacklist" size="small"
+                               type="primary">
+                      <Icon icon="fluent:settings-48-regular" width="16" height="16"/>
+                    </el-button>
+                  </div>
                 </div>
-                <div class="forward">
-                  <el-button class="opt-button" style="margin-top: 0" @click="openAnonymousReceiveBlacklist" size="small"
-                             type="primary">
-                    <Icon icon="fluent:settings-48-regular" width="16" height="16"/>
-                  </el-button>
+
+                <div class="setting-item">
+                  <div>
+                    <span>{{ $t('autoClean') }}</span>
+                    <el-tooltip effect="dark" :content="$t('autoCleanDesc')">
+                      <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+                    </el-tooltip>
+                  </div>
+                  <div class="forward">
+                    <span>{{ setting.autoCleanDays > 0 ? $t('autoCleanRetain', { days: setting.autoCleanDays }) : $t('disabled') }}</span>
+                    <el-button class="opt-button" style="margin-top: 0" @click="openAutoClean" size="small"
+                               type="primary">
+                      <Icon icon="fluent:settings-48-regular" width="16" height="16"/>
+                    </el-button>
+                  </div>
                 </div>
-              </div>
             </div>
           </div>
 
@@ -596,22 +612,6 @@
             </div>
           </div>
 
-          <!-- OAuth Login Card -->
-          <div class="settings-card">
-            <div class="card-title">{{ $t('oauthLogin') }}</div>
-            <div class="card-content">
-              <div class="setting-item" v-for="p in oauthPlatforms" :key="p.key">
-                <div><span>{{ p.label }}</span></div>
-                <div class="forward">
-                  <span>{{ setting[p.key + 'Switch'] ? $t('enabled') : $t('disabled') }}</span>
-                  <el-button class="opt-button" size="small" type="primary" :disabled="!setting[p.key + 'Switch']" @click="openOauthSetting(p)">
-                    <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
-                  </el-button>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <div class="settings-card">
             <div class="card-title">{{ $t('noticeTitle') }}</div>
             <div class="card-content">
@@ -649,6 +649,26 @@
                 <div><span>{{ $t('codeRecognitionRules') }}</span></div>
                 <div class="forward">
                   <el-button class="opt-button" size="small" type="primary" @click="openAiCodeFilter">
+                    <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- OAuth Login Card -->
+          <div class="settings-card">
+            <div class="card-title">{{ $t('oauthLogin') }}</div>
+            <div class="card-content">
+              <div class="setting-item" v-for="p in oauthPlatforms" :key="p.key">
+                <div>
+                  <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="22" class="oauth-icon"/>
+                  <Icon v-else :icon="p.icon" width="22" height="22" class="oauth-icon"/>
+                  <span>{{ p.label }}</span>
+                </div>
+                <div class="forward">
+                  <span>{{ setting[p.key + 'Switch'] === 0 ? $t('enabled') : $t('disabled') }}</span>
+                  <el-button class="opt-button" size="small" type="primary" @click="openOauthSetting(p)">
                     <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
                   </el-button>
                 </div>
@@ -724,17 +744,18 @@
         </form>
       </el-dialog>
       <el-dialog v-model="oauthSettingShow" :title="$t('oauthSetting') + ' - ' + oauthForm.label" width="340"
-                 @closed="oauthForm.clientId = ''; oauthForm.clientSecret = ''; oauthForm.callbackBase = ''">
+@closed="oauthForm.clientId = ''; oauthForm.clientSecret = ''; oauthForm.switch = 1">
         <div class="dialog-content">
           <el-input type="text" :placeholder="$t('clientId')" v-model="oauthForm.clientId"/>
           <el-input type="text" style="margin-top: 15px" :placeholder="$t('clientSecret')" v-model="oauthForm.clientSecret"/>
-          <el-input type="text" style="margin-top: 15px" :placeholder="$t('callbackBase')" v-model="oauthForm.callbackBase">
-            <template #append>/login/{{ oauthForm.key }}</template>
-          </el-input>
-          <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
-            <el-button type="primary" @click="saveOauth">{{ $t('save') }}</el-button>
-          </div>
         </div>
+        <template #footer>
+          <div class="dialog-footer">
+            <el-switch v-model="oauthForm.switch" :active-value="0" :inactive-value="1" :active-text="$t('enable')"
+                       :inactive-text="$t('disable')"/>
+            <el-button type="primary" :loading="settingLoading" @click="saveOauth">{{ $t('save') }}</el-button>
+          </div>
+        </template>
       </el-dialog>
       <el-dialog
           v-model="showSetBackground"
@@ -1205,26 +1226,43 @@
         </el-form>
         <el-button type="primary" style="width: 100%;" :loading="settingLoading" @click="saveBlackList">{{ $t('save') }}</el-button>
       </el-dialog>
-      <el-dialog v-model="anonymousReceiveBlacklistShow" class="forward-dialog" @closed="resetAnonymousReceiveBlacklist">
-        <template #header>
-          <div class="forward-head">
-            <span class="forward-set-title">{{ $t('anonymousReceiveBlacklist') }}</span>
-            <el-tooltip effect="dark" :content="$t('anonymousReceiveBlacklistDesc')">
-              <Icon class="warning" icon="fe:warning" width="18" height="18"/>
-            </el-tooltip>
-          </div>
-        </template>
-        <el-form>
-          <el-form-item :label="t('anonymousReceiveBlacklistInputDesc')" label-position="top">
-            <el-input
-                v-model="anonymousReceiveBlacklistText"
-                type="textarea"
-                :autosize="{ minRows: 3, maxRows: 6 }"
-                :placeholder="$t('anonymousReceiveBlacklistInputDesc')" />
-          </el-form-item>
-        </el-form>
-        <el-button type="primary" style="width: 100%;" :loading="settingLoading" @click="saveAnonymousReceiveBlacklist">{{ $t('save') }}</el-button>
-      </el-dialog>
+        <el-dialog v-model="anonymousReceiveBlacklistShow" class="forward-dialog" @closed="resetAnonymousReceiveBlacklist">
+          <template #header>
+            <div class="forward-head">
+              <span class="forward-set-title">{{ $t('anonymousReceiveBlacklist') }}</span>
+              <el-tooltip effect="dark" :content="$t('anonymousReceiveBlacklistDesc')">
+                <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-form>
+            <el-form-item :label="t('anonymousReceiveBlacklistInputDesc')" label-position="top">
+              <el-input
+                  v-model="anonymousReceiveBlacklistText"
+                  type="textarea"
+                  :autosize="{ minRows: 3, maxRows: 6 }"
+                  :placeholder="$t('anonymousReceiveBlacklistInputDesc')" />
+            </el-form-item>
+          </el-form>
+          <el-button type="primary" style="width: 100%;" :loading="settingLoading" @click="saveAnonymousReceiveBlacklist">{{ $t('save') }}</el-button>
+        </el-dialog>
+
+        <el-dialog v-model="autoCleanShow" :title="t('autoClean')" class="forward-dialog" @closed="resetAutoClean">
+          <el-form>
+            <el-form-item :label="t('autoCleanDays')" label-position="top">
+              <el-input-number v-model="autoCleanDays" :min="0" :max="3650" style="width: 100%"/>
+            </el-form-item>
+            <el-form-item :label="t('autoCleanExclude')" label-position="top">
+              <el-input-tag
+                  tag-type="warning"
+                  :placeholder="$t('autoCleanExcludeDesc')"
+                  v-model="autoCleanExclude"
+                  @add-tag="autoCleanExcludeAddTag"
+              />
+            </el-form-item>
+          </el-form>
+          <el-button type="primary" style="width: 100%;" :loading="settingLoading" @click="saveAutoClean">{{ $t('save') }}</el-button>
+        </el-dialog>
       <el-dialog v-model="aiCodeFilterShow" class="forward-dialog" @closed="resetAiCodeFilter">
         <template #header>
           <div class="forward-head">
@@ -1543,6 +1581,7 @@ const resendTokenFormShow = ref(false)
 const brevoTokenFormShow = ref(false)
 const blackFormShow = ref(false)
 const anonymousReceiveBlacklistShow = ref(false)
+const autoCleanShow = ref(false)
 const aiCodeFilterShow = ref(false)
 const r2DomainShow = ref(false)
 const turnstileShow = ref(false)
@@ -1565,6 +1604,8 @@ const r2DomainInput = ref('')
 const loginOpacity = ref(0)
 const minEmailPrefix = ref(0)
 const emailPrefixFilter = ref([])
+const autoCleanDays = ref(0)
+const autoCleanExclude = ref([])
 const backgroundUrl = ref('')
 let backgroundFile = {}
 const showSetBackground = ref(false)
@@ -1627,10 +1668,10 @@ const turnstileForm = reactive({
 })
 
 const oauthPlatforms = [
-  { key: 'linuxdo', label: 'LinuxDo' },
-  { key: 'github', label: 'GitHub' },
-  { key: 'gitlab', label: 'GitLab' },
-  { key: 'google', label: 'Google' },
+  { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
+  { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
+  { key: 'gitlab', label: 'GitLab', icon: 'devicon:gitlab', iconType: 'iconify' },
+  { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
 ]
 const oauthSettingShow = ref(false)
 const oauthForm = reactive({
@@ -1638,7 +1679,7 @@ const oauthForm = reactive({
   label: '',
   clientId: '',
   clientSecret: '',
-  callbackBase: '',
+  switch: 1,
 })
 
 const s3 = reactive({
@@ -1994,6 +2035,14 @@ function openEmailPrefix() {
   emailPrefixShow.value = true
 }
 
+function openAutoClean() {
+  autoCleanDays.value = setting.value.autoCleanDays ?? 0
+  autoCleanExclude.value = setting.value.autoCleanExclude
+      ? setting.value.autoCleanExclude.split(',').filter(Boolean)
+      : []
+  autoCleanShow.value = true
+}
+
 function openForwardRules() {
   ruleType.value = setting.value.ruleType
   ruleEmail.value = []
@@ -2128,6 +2177,13 @@ function resetAnonymousReceiveBlacklist() {
   anonymousReceiveBlacklistText.value = setting.value.anonymousReceiveBlacklist || ''
 }
 
+function resetAutoClean() {
+  autoCleanDays.value = setting.value.autoCleanDays ?? 0
+  autoCleanExclude.value = setting.value.autoCleanExclude
+      ? setting.value.autoCleanExclude.split(',').filter(Boolean)
+      : []
+}
+
 function resetAiCodeFilter() {
   aiCodeFilter.value = setting.value.aiCodeFilter ? setting.value.aiCodeFilter.split(',') : []
 }
@@ -2137,6 +2193,13 @@ function saveEmailPrefix() {
   form.minEmailPrefix = minEmailPrefix.value
   form.emailPrefixFilter = emailPrefixFilter.value
   editSetting(form, true)
+}
+
+function saveAutoClean() {
+  editSetting({
+    autoCleanDays: autoCleanDays.value,
+    autoCleanExclude: autoCleanExclude.value.join(',')
+  }, true)
 }
 
 function saveAiCodeFilter() {
@@ -2268,6 +2331,20 @@ function banEmailAddTag(val) {
   })
 }
 
+function autoCleanExcludeAddTag(val) {
+  const emails = Array.from(new Set(
+      val.split(/[,，]/).map(item => item.trim()).filter(item => item)
+  ));
+
+  autoCleanExclude.value.splice(autoCleanExclude.value.length - 1, 1)
+
+  emails.forEach(email => {
+    if (isEmail(email) && !autoCleanExclude.value.includes(email)) {
+      autoCleanExclude.value.push(email)
+    }
+  })
+}
+
 function aiCodeFilterAddTag(val) {
   const emails = Array.from(new Set(
       val.split(/[,，]/).map(item => item.trim()).filter(item => item)
@@ -2305,9 +2382,7 @@ function openOauthSetting(p) {
   oauthForm.label = p.label
   oauthForm.clientId = setting.value[p.key + 'ClientId'] || ''
   oauthForm.clientSecret = setting.value[p.key + 'ClientSecret'] || ''
-  const suffix = '/login/' + p.key
-  const fullUrl = setting.value[p.key + 'CallbackUrl'] || ''
-  oauthForm.callbackBase = fullUrl.endsWith(suffix) ? fullUrl.slice(0, -suffix.length) : fullUrl
+  oauthForm.switch = setting.value[p.key + 'Switch'] ?? 1
   oauthSettingShow.value = true
 }
 
@@ -2315,9 +2390,8 @@ function saveOauth() {
   const form = {}
   form[oauthForm.key + 'ClientId'] = oauthForm.clientId
   form[oauthForm.key + 'ClientSecret'] = oauthForm.clientSecret
-  form[oauthForm.key + 'CallbackUrl'] = oauthForm.callbackBase + '/login/' + oauthForm.key
+  form[oauthForm.key + 'Switch'] = oauthForm.switch
   editSetting(form)
-  oauthSettingShow.value = false
 }
 
 function saveTurnstileKey() {
@@ -2705,6 +2779,8 @@ function editSetting(settingForm, refreshStatus = true) {
     emailPrefixShow.value = false
     anonymousReceiveBlacklistShow.value = false
     aiCodeFilterShow.value = false
+    autoCleanShow.value = false
+    oauthSettingShow.value = false
   }).catch((e) => {
     loginOpacity.value = setting.value.loginOpacity
     setting.value = {...setting.value, ...JSON.parse(backup)}
@@ -2853,6 +2929,14 @@ onUnmounted(() => {
     justify-items: flex-end;
     font-weight: normal;
   }
+}
+
+.oauth-icon {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px;
+  flex-shrink: 0;
+  margin-right: 2px;
 }
 
 .r2domain-item {

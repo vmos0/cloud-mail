@@ -4,7 +4,7 @@ import userService from './service/user-service';
 import verifyRecordService from './service/verify-record-service';
 import emailService from './service/email-service';
 import kvObjService from './service/kv-obj-service';
-import oauthService from "./service/oauth-service";
+import oauthService from './service/oauth-service';
 import analysisService from './service/analysis-service';
 import attService from './service/att-service';
 import KvConst from './const/kv-const';
@@ -81,5 +81,6 @@ export default {
 		await analysisService.refreshEchartsCache({ env })
 		await attService.cleanExpiredAttachments({ env })
 		await attService.checkAndCleanOldAttachments({ env })
+		await emailService.autoClean({ env })
 	},
 };

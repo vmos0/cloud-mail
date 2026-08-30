@@ -201,19 +201,23 @@ const oauthLoading = ref(false);
 const showBindForm = ref(false);
 const show = ref('login')
 
+const oauthKeys = ['linuxdo', 'github', 'gitlab', 'google']
+
 const oauthProvider = computed(() => {
-  const match = route.path.match(/^\/login\/(.+)/)
-  return match ? match[1] : null
+  const fromState = route.query.state
+  if (oauthKeys.includes(fromState)) return fromState
+  const fromStore = sessionStorage.getItem('oauthProvider')
+  return oauthKeys.includes(fromStore) ? fromStore : null
 })
 
 const oauthProviders = computed(() => {
   const allProviders = [
-    { key: 'gitlab', label: 'GitLab', icon: 'mingcute:gitlab-fill', iconType: 'iconify' },
-    { key: 'github', label: 'GitHub', icon: 'mingcute:github-fill', iconType: 'iconify' },
-    { key: 'google', label: 'Google', icon: 'mingcute:google-fill', iconType: 'iconify' },
+    { key: 'gitlab', label: 'GitLab', icon: 'devicon:gitlab', iconType: 'iconify' },
+    { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
+    { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
     { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
   ]
-  return allProviders.filter(p => settingStore.settings[p.key + 'Switch'])
+  return allProviders.filter(p => settingStore.settings[p.key + 'Switch'] === 0)
 })
 
 const bindForm = reactive({
@@ -311,12 +315,13 @@ const getEmailName = (email) => {
 
 function oauthLogin(provider) {
   const clientId = settingStore.settings[provider + 'ClientId']
-  const redirectUri = encodeURIComponent(window.location.origin + '/login/' + provider)
+  const redirectUri = encodeURIComponent(window.location.origin + '/login')
+  sessionStorage.setItem('oauthProvider', provider)
   const authorizeUrls = {
-    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email`,
-    github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email`,
-    gitlab: `https://gitlab.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=read_user`,
-    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email`,
+    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
+    github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${provider}`,
+    gitlab: `https://gitlab.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=read_user&state=${provider}`,
+    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
   }
   window.location.href = authorizeUrls[provider]
 }
@@ -328,19 +333,19 @@ function openPublicInbox() {
 oauthGetUser();
 
 async function oauthGetUser() {
-
-  if (!oauthProvider.value) return
-
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
+  if (!code || !oauthProvider.value) return
+  const provider = oauthProvider.value
+  const redirectUri = window.location.origin + '/login'
+  oauthLoading.value = true
+  sessionStorage.removeItem('oauthProvider')
+  window.history.replaceState({}, '', window.location.origin + window.location.pathname)
 
-  if (code) {
-    oauthLoading.value = true
-
-    oauthLoginApi(oauthProvider.value, code).then(data => {
+    oauthLoginApi(provider, code, redirectUri).then(data => {
 
   bindForm.oauthUserId = data.userInfo.oauthUserId;
-  bindForm.provider = oauthProvider.value;
+  bindForm.provider = provider;
 
   if (!data.token) {
         // 设置默认邮箱
@@ -385,13 +390,6 @@ async function oauthGetUser() {
         plain: true,
       })
     })
-  }
-
-  // 只有在有code参数时才清理URL，避免影响正常的页面访问
-  if (code) {
-    const cleanUrl = window.location.origin + window.location.pathname
-    window.history.replaceState({}, '', cleanUrl)
-  }
 }
 
 // 选择邮箱建议
