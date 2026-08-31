@@ -226,6 +226,21 @@
                   </el-button>
                 </div>
               </div>
+                <div class="setting-item">
+                  <div>
+                    <span>{{ $t('autoClean') }}</span>
+                    <el-tooltip effect="dark" :content="$t('autoCleanDesc')">
+                      <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+                    </el-tooltip>
+                  </div>
+                  <div class="forward">
+                    <span>{{ setting.autoCleanDays > 0 ? $t('autoCleanRetain', { days: setting.autoCleanDays }) : $t('disabled') }}</span>
+                    <el-button class="opt-button" style="margin-top: 0" @click="openAutoClean" size="small"
+                               type="primary">
+                      <Icon icon="fluent:settings-48-regular" width="16" height="16"/>
+                    </el-button>
+                  </div>
+                </div>              
               <div class="setting-item">
                 <div>
                   <span>{{ $t('emailProvider') }}</span>
@@ -369,22 +384,6 @@
                   </div>
                   <div class="forward">
                     <el-button class="opt-button" style="margin-top: 0" @click="openAnonymousReceiveBlacklist" size="small"
-                               type="primary">
-                      <Icon icon="fluent:settings-48-regular" width="16" height="16"/>
-                    </el-button>
-                  </div>
-                </div>
-
-                <div class="setting-item">
-                  <div>
-                    <span>{{ $t('autoClean') }}</span>
-                    <el-tooltip effect="dark" :content="$t('autoCleanDesc')">
-                      <Icon class="warning" icon="fe:warning" width="18" height="18"/>
-                    </el-tooltip>
-                  </div>
-                  <div class="forward">
-                    <span>{{ setting.autoCleanDays > 0 ? $t('autoCleanRetain', { days: setting.autoCleanDays }) : $t('disabled') }}</span>
-                    <el-button class="opt-button" style="margin-top: 0" @click="openAutoClean" size="small"
                                type="primary">
                       <Icon icon="fluent:settings-48-regular" width="16" height="16"/>
                     </el-button>

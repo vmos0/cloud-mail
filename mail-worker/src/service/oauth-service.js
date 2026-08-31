@@ -200,7 +200,7 @@ const oauthService = {
 		reqParams.append('client_id', setting.gitlabClientId)
 		reqParams.append('client_secret', setting.gitlabClientSecret)
 		reqParams.append('code', code)
-		reqParams.append('redirect_uri', setting.gitlabCallbackUrl)
+		reqParams.append('redirect_uri', new URL(c.req.url).origin + '/login')
 		reqParams.append('grant_type', 'authorization_code')
 
 		const tokenRes = await fetch("https://gitlab.com/oauth/token", {

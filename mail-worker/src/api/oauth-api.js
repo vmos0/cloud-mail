@@ -29,7 +29,7 @@ app.get('/oauth/:provider/login', async (c) => {
 	const code = c.req.query('code');
 	// 重定向到前端登录页面，带上code参数
 	const origin = new URL(c.req.url).origin;
-	return c.redirect(`${origin}/${c.req.param('provider')}/login?code=${code}`, 302);
+	return c.redirect(`${origin}/login?code=${code}&state=${c.req.param('provider')}`, 302);
 });
 
 // 处理第三方绑定
