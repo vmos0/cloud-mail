@@ -11,6 +11,7 @@ import roleService from '../service/role-service';
 import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
 import aiService from '../service/ai-service';
+import webhookService from '../service/webhook-service';
 import feishuService from '../service/feishu-service';
 
 export async function email(message, env, ctx) {
@@ -23,6 +24,10 @@ export async function email(message, env, ctx) {
 			tgBotStatus,
 			forwardStatus,
 			forwardEmail,
+			webhookStatus,
+			webhookUrl,
+			webhookRetry,
+			webhookSecret,			
 			ruleEmail,
 			ruleType,
 			r2Domain,
@@ -197,6 +202,11 @@ export async function email(message, env, ctx) {
 
 			}));
 
+		}
+
+		//转发到 Webhook
+		if (webhookStatus === settingConst.webhookStatus.OPEN && webhookUrl) {
+			await webhookService.sendEmail({ env }, emailRow, webhookUrl, webhookRetry, webhookSecret);
 		}
 
 	} catch (e) {

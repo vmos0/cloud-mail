@@ -9,6 +9,7 @@ import BizError from '../error/biz-error';
 import {t} from '../i18n/i18n'
 import verifyRecordService from './verify-record-service';
 import userContext from '../security/user-context';
+import domainUtils from '../utils/domain-uitls';
 
 const settingService = {
 
@@ -238,6 +239,10 @@ const settingService = {
 			params.anonymousReceiveDomains = Array.isArray(params.anonymousReceiveDomains)
 				? params.anonymousReceiveDomains + ''
 				: String(params.anonymousReceiveDomains);
+		}
+
+		if (params.webhookUrl !== undefined) {
+			params.webhookUrl = domainUtils.toOssDomain(params.webhookUrl) || '';
 		}
 
 		params.resendTokens = JSON.stringify(resendTokens);
