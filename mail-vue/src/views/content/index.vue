@@ -183,11 +183,11 @@ function handleKeyDown(event) {
 }
 
 function openReply() {
-  uiStore.writerRef.openReply(email.value)
+  uiStore.writerRef.openReply(email)
 }
 
 function openForward() {
-  uiStore.writerRef.openForward(email.value)
+  uiStore.writerRef.openForward(email)
 }
 
 function toMessage(message) {
@@ -246,27 +246,27 @@ function formateReceive(recipient) {
 }
 
 function changeStar() {
-  if (email.value.isStar) {
-    email.value.isStar = 0;
-    starCancel(email.value.emailId).then(() => {
-      email.value.isStar = 0;
-      emailStore.cancelStarEmailId = email.value.emailId
+  if (email.isStar) {
+    email.isStar = 0;
+    starCancel(email.emailId).then(() => {
+      email.isStar = 0;
+      emailStore.cancelStarEmailId = email.emailId
       setTimeout(() => emailStore.cancelStarEmailId = 0)
-      emailStore.starScroll?.deleteEmail([email.value.emailId])
+      emailStore.starScroll?.deleteEmail([email.emailId])
     }).catch((e) => {
       console.error(e)
-      email.value.isStar = 1;
+      email.isStar = 1;
     })
   } else {
-    email.value.isStar = 1;
-    starAdd(email.value.emailId).then(() => {
-      email.value.isStar = 1;
-      emailStore.addStarEmailId = email.value.emailId
+    email.isStar = 1;
+    starAdd(email.emailId).then(() => {
+      email.isStar = 1;
+      emailStore.addStarEmailId = email.emailId
       setTimeout(() => emailStore.addStarEmailId = 0)
-      emailStore.starScroll?.addItem(email.value)
+      emailStore.starScroll?.addItem(email)
     }).catch((e) => {
       console.error(e)
-      email.value.isStar = 0;
+      email.isStar = 0;
     })
   }
 }
@@ -282,23 +282,23 @@ const handleDelete = () => {
     type: 'warning'
   }).then(() => {
     if (emailStore.contentData.delType === 'logic') {
-      emailDelete(email.value.emailId).then(() => {
+      emailDelete(email.emailId).then(() => {
         ElMessage({
           message: t('delSuccessMsg'),
           type: 'success',
           plain: true,
         })
-        emailStore.deleteIds = [email.value.emailId]
+        emailStore.deleteIds = [email.emailId]
       })
     } else  {
 
-      allEmailDelete(email.value.emailId).then(() => {
+      allEmailDelete(email.emailId).then(() => {
         ElMessage({
           message: t('delSuccessMsg'),
           type: 'success',
           plain: true,
         })
-        emailStore.deleteIds = [email.value.emailId]
+        emailStore.deleteIds = [email.emailId]
       })
     }
 
