@@ -31,10 +31,10 @@
               </div>
             </div>
             <div class="message-actions">
-              <el-button size="small" @click="reply(mail)">回复</el-button>
-              <el-button size="small" @click="replyAll(mail)">回复全部</el-button>
-              <el-button size="small" @click="forward(mail)">转发</el-button>
-              <el-button size="small" type="danger" plain :loading="deletingIds.includes(mail.emailId)" @click="deleteMail(mail)">删除</el-button>
+              <Icon class="icon" @click="reply(mail)" icon="la:reply" width="21" height="21" />
+              <Icon class="icon" @click="replyAll(mail)" icon="la:reply-all" width="21" height="21" />
+              <Icon class="icon" @click="forward(mail)" icon="iconoir:arrow-up-right" width="20" height="20" />
+              <Icon class="icon" @click="deleteMail(mail)" icon="uiw:delete" width="18" height="18" />
             </div>
           </div>
         </div>
