@@ -43,11 +43,6 @@ const routes = [
                 meta: { title: 'starred', name: 'star', menu: true }
             },
             {
-                path: '/contacts',
-                name: 'contacts',
-                component: () => import('@/views/contact/index.vue'),
-                meta: { title: 'contacts', name: 'contacts', menu: true }
-            },
         ]
     },
     {
