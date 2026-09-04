@@ -46,7 +46,6 @@ const [account, roleRow, permKeys, oauthList] = await Promise.all([
 		user.userId = userRow.userId;
 		user.sendCount = userRow.sendCount;
 		user.email = userRow.email;
-		user.emailAutoDeleteDays = userRow.emailAutoDeleteDays;
 		user.account = account;
 		user.name = account.name;
 		user.permKeys = permKeys;
@@ -283,13 +282,6 @@ const [account, roleRow, permKeys, oauthList] = await Promise.all([
 		const { password, userId } = params;
 		await this.resetPassword(c, { password }, userId);
 		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
-	},
-
-	async setEmailAutoDeleteDays(c, params, userId) {
-		const { emailAutoDeleteDays } = params;
-		// 限制天数范围为1-30天
-		const days = Math.max(0, Math.min(30, emailAutoDeleteDays));
-		await orm(c).update(user).set({ emailAutoDeleteDays: days }).where(eq(user.userId, userId)).run();
 	},
 
 	async setStatus(c, params) {

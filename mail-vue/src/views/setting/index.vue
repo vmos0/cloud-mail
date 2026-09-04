@@ -29,25 +29,6 @@
           <el-button type="primary" @click="pwdShow = true">{{$t('changePwdBtn')}}</el-button>
         </div>
       </div>
-      <div class="item">
-        <div>{{$t('emailAutoDelete')}}</div>
-        <div>
-          <el-tooltip effect="dark" :content="$t('emailAutoDeleteDesc')">
-            <el-input-number
-              v-model="emailAutoDeleteDays"
-              @change="handleSetEmailAutoDeleteDays"
-              :min="0"
-              :max="30"
-              :precision="0"
-              style="width: 150px"
-            >
-              <template #suffix>
-                <span>{{ $t('dayUnit') }}</span>
-              </template>
-            </el-input-number>
-          </el-tooltip>
-        </div>
-      </div>
 <div
   class="item"
   v-for="p in oauthProviders"
@@ -133,7 +114,7 @@
 </template>
 <script setup>
 import {reactive, ref, computed, defineOptions, onMounted} from 'vue'
-import {resetPassword, userDelete, setEmailAutoDeleteDays, unbind} from "@/request/my.js"
+import {resetPassword, userDelete, unbind} from "@/request/my.js"
 import {useUserStore} from "@/store/user.js"
 import router from "@/router/index.js"
 import {accountSetName} from "@/request/account.js"
@@ -150,8 +131,6 @@ const setPwdLoading = ref(false)
 const setNameShow = ref(false)
 const accountName = ref(null)
 const langSelect = ref(settingStore.lang)
-const emailAutoDeleteDays = ref(30)
-const setEmailAutoDeleteLoading = ref(false)
 
 // OAuth Provider 配置
 const oauthProviders = computed(() => {
@@ -278,24 +257,6 @@ const deleteConfirm = () => {
   })
 }
 
-// 设置邮件自动删除天数
-const handleSetEmailAutoDeleteDays = () => {
-  setEmailAutoDeleteLoading.value = true
-  setEmailAutoDeleteDays(emailAutoDeleteDays.value).then(() => {
-
-    userStore.user.emailAutoDeleteDays = emailAutoDeleteDays.value
-
-    ElMessage({
-      message: t('saveSuccessMsg'),
-      type: 'success',
-      plain: true,
-    })
-    setEmailAutoDeleteLoading.value = false
-  }).catch(() => {
-    setEmailAutoDeleteLoading.value = false
-  })
-}
-
 // 绑定 OAuth 账号
 const bindOauth = (provider) => {
   const clientId = settingStore.settings[provider.key + 'ClientId']
@@ -328,12 +289,6 @@ const handleUnbind = (provider) => {
       )
   })
 }
-
-// 组件挂载时获取用户信息，包括邮件自动删除设置
-onMounted(() => {
-  // 从用户信息中获取邮件自动删除设置
-    emailAutoDeleteDays.value = userStore.user.emailAutoDeleteDays ?? 30
-})
 
 function submitPwd() {
 

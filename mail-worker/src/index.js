@@ -76,11 +76,8 @@ export default {
 		await verifyRecordService.clearRecord({ env })
 		await userService.resetDaySendCount({ env })
 		await emailService.completeReceiveAll({ env })
-		await emailService.autoDeleteEmails({ env })
 		await oauthService.clearNoBindOathUser({ env })
 		await analysisService.refreshEchartsCache({ env })
-		await attService.cleanExpiredAttachments({ env })
-		await attService.checkAndCleanOldAttachments({ env })
 		await emailService.autoClean({ env })
 	},
 };

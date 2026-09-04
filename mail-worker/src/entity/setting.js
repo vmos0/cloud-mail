@@ -60,8 +60,6 @@ export const setting = sqliteTable('setting', {
 	aiCode: integer('ai_code').default(1).notNull(),
 	syncDelete: integer('sync_delete').default(1).notNull(),
 	aiCodeFilter: text('ai_code_filter').default('').notNull(),
-    r2MaxSize: integer('r2_max_size').default(10737418240).notNull(),
-    r2FileExpireDays: integer('r2_file_expire_days').default(7).notNull(),
     brevoTokens: text('brevo_tokens').default("{}").notNull(),
     emailProvider: text('email_provider').default('').notNull(),
     feishuAppId: text('feishu_app_id').default('').notNull(),
