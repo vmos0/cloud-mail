@@ -414,6 +414,15 @@
                 </div>
               </div>
               <div class="setting-item">
+                <div><span>{{ $t('feishuPush') }}</span></div>
+                <div class="forward">
+                  <span>{{ setting.feishuBotStatus === 0 ? $t('enabled') : $t('disabled') }}</span>
+                  <el-button class="opt-button" size="small" type="primary" @click="openFeishuSetting">
+                    <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
+                  </el-button>
+                </div>
+              </div>
+              <div class="setting-item">
                 <div><span>{{ $t('webhook') }}</span></div>
                 <div class="forward">
                   <span>{{ setting.webhookStatus === 0 ? $t('enabled') : $t('disabled') }}</span>
