@@ -42,7 +42,6 @@ const routes = [
                 component: () => import('@/views/star/index.vue'),
                 meta: { title: 'starred', name: 'star', menu: true }
             },
-            {
         ]
     },
     {
