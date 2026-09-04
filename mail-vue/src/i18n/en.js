@@ -469,7 +469,6 @@ const en = {
     s3Configuration: 'S3 Configuration',
     confirmDeletionOfContacts: 'Confirm clearing contacts?',
     recentContacts: 'Recent contacts',
-    conversation: 'Conversation',
     selectContacts: 'Select',
     forcePathStyleDesc: 'Some self-hosted object storages require path-style access to be enabled',
     storageType: 'Storage Location',

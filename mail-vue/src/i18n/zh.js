@@ -455,7 +455,6 @@ const zh = {
     s3Configuration: 'S3 配置',
     confirmDeletionOfContacts: '确认清除这些联系人吗？',
     recentContacts: '最近联系人',
-    conversation: '对话',
     selectContacts: '选中',
     forcePathStyleDesc: '路径样式访问，一些自建的对象存储需要打开',
     storageType: '存储类型',

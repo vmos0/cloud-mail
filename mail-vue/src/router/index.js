@@ -25,12 +25,6 @@ const routes = [
                 meta: { title: 'message', name: 'content', menu: false }
             },
             {
-                path: '/conversation',
-                name: 'conversation',
-                component: () => import('@/views/conversation/index.vue'),
-                meta: { title: 'conversation', name: 'conversation', menu: false }
-            },
-            {
                 path: '/settings',
                 name: 'setting',
                 component: () => import('@/views/setting/index.vue'),
