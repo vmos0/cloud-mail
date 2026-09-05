@@ -3297,7 +3297,7 @@ onUnmounted(() => {
     align-self: end;
   }
 
-  > *:nth-child(-n+2) {
+  > *:nth-child(-n+3) {
     margin-bottom: 15px;
   }
 
