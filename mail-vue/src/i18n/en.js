@@ -303,7 +303,7 @@ const en = {
     tgBotDesc: 'Forward received emails to a Telegram bot',
     tgBotToken: 'Bot token',
     toBotTokenDesc: 'Multiple user chat_ids, separated by commas',
-    tgReplyMessageId: 'User reply_message_id, separate multiple with commas',
+    tgReplyMessageId: 'User replay_message_id, separate multiple with commas',
     tgReplyMessageIdInvalid: 'Input error: invalid format or count mismatch',
     otherEmailDesc: 'Emails can be forwarded to an external address, but must be verified via Cloudflare.',
     otherEmailInputDesc: 'Separate multiple email addresses with commas',
