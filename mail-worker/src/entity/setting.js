@@ -25,6 +25,7 @@ export const setting = sqliteTable('setting', {
 	background: text('background'),
 	tgBotToken: text('tg_bot_token').default('').notNull(),
 	tgChatId: text('tg_chat_id').default('').notNull(),
+	tgReplyMessageId: text('tg_reply_message_id').default('').notNull(),
 	tgBotStatus: integer('tg_bot_status').default(1).notNull(),
 	forwardEmail: text('forward_email').default('').notNull(),
 	forwardStatus: integer('forward_status').default(1).notNull(),

@@ -240,7 +240,7 @@
                       <Icon icon="fluent:settings-48-regular" width="16" height="16"/>
                     </el-button>
                   </div>
-                </div>              
+                </div>
               <div class="setting-item">
                 <div>
                   <span>{{ $t('emailProvider') }}</span>
@@ -766,6 +766,7 @@
           <el-input :placeholder="setting.tgBotToken || $t('tgBotToken')" v-model="tgBotToken" @keyup.enter="tgBotSave"></el-input>
           <el-input-tag tag-type="warning" :placeholder="$t('toBotTokenDesc')" v-model="tgChatId"
                         @add-tag="addChatTag"></el-input-tag>
+          <el-input tag-type="warning" :placeholder="$t('tgReplyMessageId')" v-model="tgReplyMessageId" @keyup.enter="tgBotSave"></el-input>
           <el-input tag-type="warning" :placeholder="$t('customDomainDesc')" v-model="customDomain" @keyup.enter="tgBotSave"></el-input>
           <div class="tg-msg-label">
             <span>{{t('from')}}</span>
@@ -1031,7 +1032,7 @@ Authorization: &lt;secret&gt;</pre>
             </div>
           </div>
         </template>
-      </el-dialog>      
+      </el-dialog>
       <el-dialog
           v-model="forwardRulesShow"
           class="forward-dialog"
@@ -1728,6 +1729,7 @@ const authRefreshOptions = computed(() => [
 ])
 
 const tgChatId = ref([])
+const tgReplyMessageId = ref('')
 const customDomain = ref('')
 const tgBotStatus = ref(0)
 const tgBotToken = ref('')
@@ -1930,6 +1932,7 @@ function openTgSetting() {
   tgMsgText.value = setting.value.tgMsgText
   tgMsgTo.value = setting.value.tgMsgTo
   tgChatId.value = []
+  tgReplyMessageId.value = setting.value.tgReplyMessageId || ''
   if (setting.value.tgChatId) {
     const list = setting.value.tgChatId.split(',')
     tgChatId.value.push(...list)
@@ -2132,10 +2135,29 @@ function saveS3() {
 }
 
 function tgBotSave() {
+  const chatIds = tgChatId.value
+      .map(id => String(id).trim())
+      .filter(Boolean)
+  const replyMessageIds = String(tgReplyMessageId.value || '')
+      .split(/[,，]/)
+      .map(id => id.trim())
+      .filter(Boolean)
+
+  if (replyMessageIds.length > 0) {
+    const invalidFormat = replyMessageIds.some(id => !/^\d+$/.test(id))
+    const invalidCount = replyMessageIds.length !== 1 && replyMessageIds.length !== chatIds.length
+
+    if (invalidFormat || invalidCount) {
+      ElMessage.error(t('tgReplyMessageIdInvalid'))
+      return
+    }
+  }
+
   const form = {
     customDomain: customDomain.value,
     tgBotStatus: tgBotStatus.value,
     tgChatId: tgChatId.value + '',
+    tgReplyMessageId: tgReplyMessageId.value.trim(),
     tgMsgFrom: tgMsgFrom.value,
     tgMsgText: tgMsgText.value,
     tgMsgTo: tgMsgTo.value
@@ -3299,7 +3321,7 @@ onUnmounted(() => {
     line-height: 1.5;
     overflow-x: auto;
     border-radius: 4px;
-    background: var(--el-fill-color-light);    
+    background: var(--el-fill-color-light);
   }
 }
 

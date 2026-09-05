@@ -34,8 +34,15 @@ const telegramService = {
 
     async sendEmailToBot(c, email) {
         // 原有收取邮件转发给 TG 的逻辑保持不变
-        const { tgBotToken, tgChatId, customDomain, tgMsgTo, tgMsgFrom, tgMsgText } = await settingService.query(c);
-        const tgChatIds = tgChatId.split(',');
+        const { tgBotToken, tgChatId, tgReplyMessageId, customDomain, tgMsgTo, tgMsgFrom, tgMsgText } = await settingService.query(c);
+        const tgChatIds = String(tgChatId || '')
+            .split(/[,，]/)
+            .map(id => id.trim())
+            .filter(Boolean);
+        const tgReplyMessageIds = String(tgReplyMessageId || '')
+            .split(/[,，]/)
+            .map(id => id.trim())
+            .filter(Boolean);
         const jwtToken = await jwtUtils.generateToken(c, { emailId: email.emailId });
         // 为了安全起见，这里也加上 https:// 的强制保障
         let safeDomain = customDomain.startsWith('http') ? customDomain : `https://${customDomain}`;
@@ -58,8 +65,24 @@ const telegramService = {
 			]);
 		}
 
-        await Promise.all(tgChatIds.map(async chatId => {
+        await Promise.all(tgChatIds.map(async (chatId, index) => {
             try {
+                let replyMessageId = null;
+                if (tgReplyMessageIds.length === 1) {
+                    replyMessageId = tgReplyMessageIds[0];
+                } else if (tgReplyMessageIds.length === tgChatIds.length) {
+                    replyMessageId = tgReplyMessageIds[index];
+                }
+
+                const replyParameters = replyMessageId && /^\d+$/.test(replyMessageId)
+                    ? {
+                        reply_parameters: {
+                            message_id: Number(replyMessageId),
+                            allow_sending_without_reply: true
+                        }
+                    }
+                    : {};
+
                 await fetch(`https://api.telegram.org/bot${tgBotToken}/sendMessage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -67,6 +90,7 @@ const telegramService = {
                         chat_id: chatId,
                         parse_mode: 'HTML',
                         text: emailMsgTemplate(email, tgMsgTo, tgMsgFrom, tgMsgText),
+                        ...replyParameters,
                         reply_markup: { inline_keyboard: inlineKeyboard }
                     })
                 });

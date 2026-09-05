@@ -303,6 +303,8 @@ const zh = {
     tgBotDesc: '可以将接收的邮件转发到Tg机器人',
     tgBotToken: '机器人 token',
     toBotTokenDesc: '用户 chat_id 多个用,分开',
+    tgReplyMessageId: '用户 reply_message_id 多个用,分开',
+    tgReplyMessageIdInvalid: '填写错误：格式错误或数量不匹配',
     otherEmailDesc: '可以将邮件转到其他服务商邮箱，需要在cloudflare验证邮箱',
     otherEmailInputDesc: '多个邮箱用, 分开',
     forwardingRulesDesc: '规则转发只会转发设置邮箱所接收的邮件',
