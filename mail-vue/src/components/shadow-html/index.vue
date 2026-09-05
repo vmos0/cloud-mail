@@ -23,7 +23,7 @@ function cleanBodyStyle(style) {
     .replace(/(?:^|;)\s*display\s*:\s*none\s*!?\s*;?/gi, ';')
     .replace(/(?:^|;)\s*visibility\s*:\s*hidden\s*!?\s*;?/gi, ';')
     .replace(/(?:^|;)\s*opacity\s*:\s*0\s*!?\s*;?/gi, ';')
-    .trim()
+    .trim();
 }
 
 function sanitizeHtml(html) {
@@ -39,26 +39,25 @@ function sanitizeHtml(html) {
     .replace(/<!doctype[^>]*>/gi, '')
     .replace(/<\/?html[^>]*>/gi, '')
     .replace(/<\/?head[^>]*>/gi, '')
-    .replace(/<\/?body[^>]*>/gi, '')
+    .replace(/<\/?body[^>]*>/gi, '');
 }
 
 function updateContent() {
-  if (!shadowRoot) return
+  if (!shadowRoot) return;
 
-  const bodyStyleRegex = /<body[^>]*\sstyle\s*=\s*(["'])([\s\S]*?)\1[^>]*>/i
-  const bodyStyleMatch = String(props.html || '').match(bodyStyleRegex)
-  const bodyStyle = cleanBodyStyle(bodyStyleMatch ? bodyStyleMatch[2] : '')
-  const cleanedHtml = sanitizeHtml(props.html)
+  const bodyStyleRegex = /<body[^>]*\sstyle\s*=\s*(["'])([\s\S]*?)\1[^>]*>/i;
+  const bodyStyleMatch = String(props.html || '').match(bodyStyleRegex);
+  const bodyStyle = cleanBodyStyle(bodyStyleMatch ? bodyStyleMatch[2] : '');
+  const cleanedHtml = sanitizeHtml(props.html);
 
   shadowRoot.innerHTML = `
     <style>
       :host {
         all: initial;
-        display: block;
         width: 100%;
-        min-height: 40px;
-        font-family: -apple-system, Inter, BlinkMacSystemFont,
-                    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        height: 100%;
+        font-family: Inter, 'Helvetica Neue', Helvetica, 'PingFang SC',
+                    'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
         font-size: 14px;
         line-height: 1.5;
         color: #13181D;
@@ -81,9 +80,9 @@ function updateContent() {
 
       .shadow-content {
         background: #FFFFFF;
-        width: 100%;
-        min-width: 0;
+        width: fit-content;
         height: fit-content;
+        min-width: 100%;
         ${bodyStyle ? bodyStyle : ''}
       }
 
@@ -95,14 +94,26 @@ function updateContent() {
     <div class="shadow-content">
       ${cleanedHtml}
     </div>
-  `
+  `;
 }
 
 function autoScale() {
-  // Do not use zoom based on scrollWidth. Wide email tables are common and
-  // scaling the whole host can make otherwise valid content unreadable.
   if (!shadowRoot || !contentBox.value) return
-  shadowRoot.host.style.zoom = ''
+
+  const parent = contentBox.value
+  const shadowContent = shadowRoot.querySelector('.shadow-content')
+
+  if (!shadowContent) return
+
+  const parentWidth = parent.offsetWidth
+  const childWidth = shadowContent.scrollWidth
+
+  if (childWidth === 0) return
+
+  const scale = parentWidth / childWidth
+
+  const hostElement = shadowRoot.host
+  hostElement.style.zoom = scale
 }
 
 onMounted(async () => {
@@ -122,13 +133,13 @@ watch(() => props.html, async () => {
 <style scoped>
 .content-box {
   width: 100%;
-  min-height: 40px;
-  overflow: visible;
-  font-family: -apple-system, Inter, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  height: 100%;
+  overflow: hidden;
+  font-family: Inter, "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
 }
 
 .content-html {
   width: 100%;
-  min-height: 40px;
+  height: 100%;
 }
 </style>

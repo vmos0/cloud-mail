@@ -266,7 +266,6 @@ const en = {
     feishuDeveloperTool: 'Feishu Open Platform - Developer Tools',
     onlineDebug: 'Online Debug',
     avatar: 'Avatar',
-    feishuSettings: 'Settings',
     copyLink: 'Copy Link',
     shareGroup: 'Share Group',
     visit: 'Visit',

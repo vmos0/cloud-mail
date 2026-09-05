@@ -266,7 +266,6 @@ const zh = {
     feishuDeveloperTool: '飞书开放平台 - 开发工具',
     onlineDebug: '在线调试',
     avatar: '头像',
-    feishuSettings: '设置',
     copyLink: '复制链接',
     shareGroup: '分享群聊',
     visit: '访问',

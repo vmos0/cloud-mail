@@ -2839,7 +2839,7 @@ onUnmounted(() => {
 .settings-container {
   height: 100%;
   overflow: hidden;
-  background: var(--extra-light-fill) !important;
+  background: var(--settings-page-background) !important;
   position: relative;
 
   .loading {
